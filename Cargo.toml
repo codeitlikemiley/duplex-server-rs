@@ -1,0 +1,11 @@
+[package]
+name = "coqrs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "^0.7.5"
+serde = { version = "1.0.204", features = ["derive"] }
+sqlx = { version = "0.7", features = ["postgres", "macros"]}
+tokio = { version = "^1", features = ["full"] }
+uuid = "1.10.0"
