@@ -32,4 +32,10 @@ Note: if this dont exist you need to create `db.rs`
 
 6. Create a Handler for specific Entity that accepts db pool connection as constructor
 
+7. Create Controllers 
+e.g. user_controller.rs
+that has functions related to user 
+it can have the state injected
+and have access to payload and path params
+
 here we can use the repo method 
