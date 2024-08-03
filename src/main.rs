@@ -1,6 +1,7 @@
 mod commands;
 mod controllers;
 mod db;
+mod domain;
 mod events;
 mod models;
 mod repositories;
