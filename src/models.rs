@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
-use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, FromRow)]
+use crate::domain::Model;
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct User {
     pub id: Uuid,
     pub username: String,
     pub email: String,
 }
+
+impl Model for User {}
