@@ -8,11 +8,11 @@ use uuid::Uuid;
 
 use crate::{
     commands,
-    handlers::{self, UserHandler},
+    services::{self, UserService},
 };
 
 pub async fn create_user(
-    State(handler): State<UserHandler>,
+    State(handler): State<UserService>,
     Json(payload): Json<commands::CreateUser>,
 ) -> impl IntoResponse {
     match handler.handle_create_user(payload).await {
@@ -27,7 +27,7 @@ pub async fn create_user(
     }
 }
 pub async fn get_user_by_id(
-    State(state): State<handlers::UserHandler>,
+    State(state): State<services::UserService>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
     match state.handle_get_user_by_id(id).await {

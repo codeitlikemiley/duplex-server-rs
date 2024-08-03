@@ -9,11 +9,11 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct UserHandler {
+pub struct UserService {
     pub repo: db::PgPool,
 }
 
-impl UserHandler {
+impl UserService {
     pub fn new(repo: db::PgPool) -> Self {
         Self { repo }
     }
