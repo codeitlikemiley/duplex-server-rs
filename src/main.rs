@@ -2,15 +2,17 @@ mod commands;
 mod controllers;
 mod db;
 mod events;
-mod handlers;
 mod models;
 mod repositories;
+mod routes;
+mod services;
 use axum::{
     routing::{get, post},
     Router,
 };
 use controllers::{create_user, get_user_by_id};
-use handlers::UserHandler;
+use routes::Api;
+use services::UserService;
 use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
 
@@ -38,12 +40,12 @@ async fn main() {
         .await
         .expect("can't connect to database");
 
-    let state = UserHandler::new(db::PgPool::new(pool.clone()));
+    let user_service = UserService::new(db::PgPool::new(pool.clone()));
 
     let app = Router::new()
-        .route("/users", post(create_user))
-        .route("/users/:id", get(get_user_by_id))
-        .with_state(state);
+        .route(Api::CreateUser.into(), post(create_user))
+        .route(Api::GetUser.into(), get(get_user_by_id))
+        .with_state(user_service);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
