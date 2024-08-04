@@ -12,6 +12,6 @@ pub fn services(pool: Pool<Postgres>) -> axum::routing::Router {
     tonic::transport::Server::builder()
         .accept_http1(true)
         .add_service(reflection_service)
-        .add_service(GrpcUserServiceImpl::new(pool.clone()))
+        .add_service(tonic_web::enable(GrpcUserServiceImpl::new(pool.clone())))
         .into_router()
 }
