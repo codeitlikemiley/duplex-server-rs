@@ -1,15 +1,5 @@
 ## DDD + CQRS + EventSourcing 
 
-TODO:
-- Use Read / Write DB
-- Use Querries and Projections
-- Create Events Table (Event Sourcing)
-- Create Aggregate Tables (Normalized Data)
-- Create Projection Tables (De-Normalize Data)
-- Add Aggrate / Entity Traits
-- Use Event Store (solely for events)
-- Use Snapshots?
-
 ### DDD Traits
 <details>
 <summary>1. Command</summary>
@@ -54,7 +44,7 @@ pub trait Model: Serialize + DeserializeOwned + Unpin + Send + Sync + 'static {}
 </details>
 
 
-### Workflow
+### Workflow Rest API
 
 <details>
 <summary>1. Create Routes Api</summary>
@@ -353,6 +343,205 @@ pub async fn get_user_by_id(
 - Note: You have access to State as first Parameter
 
 </details>
+
+
+### Workflow Grpc
+
+<details>
+<summary>1. Create Protobuf</summary>
+<br>
+
+Note: It is important to note that any Command / Querries are equivalent to RPC
+
+While both Request and Response can be used by Either Rest or Grpc Service
+
+Through the build.rs we made all Request and Response Be `De/Serializable` 
+
+```proto
+syntax = "proto3";
+package users;
+
+// we can define here all our commands and querries
+// as rpc
+// while request and response for the messages
+service UserService {
+    rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+
+    rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+message CreateUserRequest {
+    string username =1;
+    string email = 2;
+}
+
+message CreateUserResponse {}
+
+message GetUserRequest {
+    string id = 1;
+}
+
+message GetUserResponse {
+    string id = 1;
+    string username = 2;
+    string email = 3;
+}
+
+```
+
+</details>
+
+
+<details>
+<summary>2. Impl From Trait on a Command</summary>
+
+<br>
+
+Note: Here we made use of the generated `Message` on proto like `CreateUserRequest` to a command `CreateUser`
+
+```rust
+impl From<CreateUserRequest> for CreateUser {
+    fn from(value: CreateUserRequest) -> Self {
+        CreateUser {
+            email: value.email,
+            username: value.username,
+        }
+    }
+}
+```
+
+<br>
+
+Note: This will help us on Grpc Impl to just use `CreateUser::from(request.into_inner())`
+
+And converting any request to command that we can use our our service provider
+
+</details>
+
+
+
+<details>
+<summary>3. Create/Add Grpc Service</summary>
+<br>
+
+Note: It is important that you passed a state of db pool connection to a `service_provider`
+
+
+```rust
+use sqlx::{Pool, Postgres};
+use tonic_reflection::pb::v1alpha::FILE_DESCRIPTOR_SET;
+
+use super::users::GrpcUserServiceImpl;
+
+pub fn services(pool: Pool<Postgres>) -> axum::routing::Router {
+    let reflection_service = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
+        .build()
+        .unwrap();
+
+    tonic::transport::Server::builder()
+        .accept_http1(true)
+        .add_service(reflection_service)
+        .add_service(GrpcUserServiceImpl::new(pool.clone()))
+        /// Add your new Service here
+        .into_router()
+}
+
+```
+
+Note: you can enable `tonic_web` on specific service by doing this
+
+```rust        
+.add_service(tonic_web::enable(GrpcUserServiceImpl::new(pool.clone())))
+```
+
+
+</details>
+
+
+<details>
+<summary>4. Implement Rpc</summary>
+
+<br>
+
+```rust
+use sqlx::{Pool, Postgres};
+use tonic::{Request, Response, Status};
+use tracing::{error, info};
+use uuid::Uuid;
+
+use crate::{
+    commands::CreateUser,
+    proto::{
+        user_service_server::{UserService as GrpcUserService, UserServiceServer},
+        CreateUserRequest, CreateUserResponse, GetUserRequest, GetUserResponse,
+    },
+    services::UserService,
+    PostgreSQL,
+};
+
+#[derive(Debug)]
+pub struct GrpcUserServiceImpl {
+    repo: UserService,
+}
+
+impl GrpcUserServiceImpl {
+    pub fn new(pool: Pool<Postgres>) -> UserServiceServer<GrpcUserServiceImpl> {
+        let user_service = UserService::new(PostgreSQL::new(pool.clone()));
+        UserServiceServer::new(GrpcUserServiceImpl { repo: user_service })
+    }
+}
+
+#[tonic::async_trait]
+impl GrpcUserService for GrpcUserServiceImpl {
+    async fn create_user(
+        &self,
+        request: Request<CreateUserRequest>,
+    ) -> Result<Response<CreateUserResponse>, Status> {
+        let command = CreateUser::from(request.into_inner());
+
+        match self.repo.handle_create_user(command).await {
+            Ok(_) => {
+                info!("User Created");
+                Ok(Response::new(CreateUserResponse {}))
+            }
+            Err(e) => {
+                error!("{}", e);
+                Err(Status::already_exists("User already Exists"))
+            }
+        }
+    }
+
+    async fn get_user(
+        &self,
+        request: Request<GetUserRequest>,
+    ) -> Result<Response<GetUserResponse>, Status> {
+        let id = Uuid::parse_str(&request.into_inner().id).unwrap();
+
+        match self.repo.handle_get_user_by_id(id).await {
+            Ok(Some(user)) => {
+                info!("User Found:\n{:#?}", user);
+                let response = Response::new(GetUserResponse {
+                    id: user.id.to_string(),
+                    email: user.email,
+                    username: user.username,
+                });
+
+                Ok(response)
+            }
+            Ok(None) => Err(Status::not_found("User Not Found")),
+            Err(e) => {
+                error!("{}", e);
+                Err(Status::not_found("User Not Found"))
+            }
+        }
+    }
+}
+
+```
+
+</details>
+
 
 ---
 
