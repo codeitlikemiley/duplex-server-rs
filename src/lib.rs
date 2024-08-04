@@ -13,3 +13,4 @@ pub use infrastructure::http::controllers;
 /// ---
 pub use infrastructure::http::routes::Api;
 pub use infrastructure::persistence;
+pub use infrastructure::proto;
