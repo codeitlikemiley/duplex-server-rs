@@ -1,9 +1,6 @@
 use uuid::Uuid;
 
-use crate::{
-    commands::CreateUser, events::UserCreated, models::User, repositories::UserRepository,
-    PostgreSQL,
-};
+use crate::{commands::CreateUser, models::User, repositories::UserRepository, PostgreSQL};
 
 #[derive(Clone, Debug)]
 pub struct UserService {
@@ -22,15 +19,7 @@ impl UserService {
             email: cmd.email,
         };
 
-        let event = UserCreated {
-            id: user.id,
-            username: user.username.clone(),
-            email: user.email.clone(),
-        };
-
         self.repo.save_user(user).await?;
-        self.repo.save_event(event).await?;
-
         Ok(())
     }
 

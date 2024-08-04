@@ -18,7 +18,7 @@ impl PostgreSQL {
 #[async_trait]
 impl UserRepository for PostgreSQL {
     async fn save_user(&self, user: models::User) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+        let result = sqlx::query!(
             "INSERT INTO users (id,username,email) VALUES ($1,$2,$3)",
             user.id,
             &user.username,
@@ -26,6 +26,15 @@ impl UserRepository for PostgreSQL {
         )
         .execute(&self.db)
         .await?;
+        if result.rows_affected() > 1 {
+            let event = UserCreated {
+                id: user.id,
+                username: user.username.clone(),
+                email: user.email.clone(),
+            };
+            self.save_event(event).await?
+        }
+        // TODO: Need to Create Custom Error
         Ok(())
     }
 
