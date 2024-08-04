@@ -4,12 +4,26 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.86"
 axum = "^0.7.5"
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
+hyper = "1.4.1"
+prost = "0.13.1"
+prost-derive = "0.13.1"
+prost-types = "0.13.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.7", features = ["postgres", "macros", "uuid","runtime-tokio"]}
 tokio = { version = "1", features = ["full"] }
+tonic = "0.12.1"
+tonic-reflection = "0.12.1"
+tonic-web = "0.12.1"
+tower = "0.4.13"
+tower-http = "0.5.2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = {version = "1" , features = ["serde", "v7"]}
+
+[build-dependencies]
+glob = "0.3.1"
+tonic-build = "0.12.1"
