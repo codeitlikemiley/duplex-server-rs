@@ -259,6 +259,7 @@ dependencies = [
  "prost",
  "prost-derive",
  "prost-types",
+ "regex",
  "serde",
  "serde_json",
  "sqlx",
