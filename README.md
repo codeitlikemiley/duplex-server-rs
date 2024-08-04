@@ -1,5 +1,7 @@
 ## DDD + CQRS + EventSourcing 
 
+> Duplex Using REST API and GRPC
+
 ### DDD Traits
 <details>
 <summary>1. Command</summary>
@@ -223,6 +225,18 @@ impl UserRepository for PgPool {
             .await
     }
 }
+```
+
+</details>
+
+<details><summary>7. SQLX Compile Time Check</summary> 
+
+<br>
+
+Note: This is only required if we use `query!` and `query_as!` macro.
+
+```rust
+cargo sqlx prepare
 ```
 
 </details>
@@ -591,5 +605,3 @@ curl localhost:80/users/01911459-8cfa-7e91-9f2a-4d3da4faa526
     "id": "01911459-8cfa-7e91-9f2a-4d3da4faa526",
 }
 ```
-
-
