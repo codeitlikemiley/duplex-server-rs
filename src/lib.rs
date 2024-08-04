@@ -18,4 +18,4 @@ pub use infrastructure::logger::init_logger;
 pub use infrastructure::proto;
 pub use infrastructure::repositories::PostgreSQL;
 
-pub use infrastructure::grpc::services::services;
+pub use infrastructure::grpc::services::services as grpc_services;

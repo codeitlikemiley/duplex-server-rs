@@ -1,10 +1,11 @@
 use sqlx::{Pool, Postgres};
+use tokio::sync::mpsc;
 use tonic::{Request, Response, Status};
 use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    commands::CreateUser,
+    commands::{CommandMessage, CreateUser},
     proto::{
         user_service_server::{UserService as GrpcUserService, UserServiceServer},
         CreateUserRequest, CreateUserResponse, GetUserRequest, GetUserResponse,
@@ -19,8 +20,11 @@ pub struct GrpcUserServiceImpl {
 }
 
 impl GrpcUserServiceImpl {
-    pub fn new(pool: Pool<Postgres>) -> UserServiceServer<GrpcUserServiceImpl> {
-        let user_service = UserService::new(PostgreSQL::new(pool.clone()));
+    pub fn new(
+        pool: Pool<Postgres>,
+        sender: mpsc::Sender<CommandMessage>,
+    ) -> UserServiceServer<GrpcUserServiceImpl> {
+        let user_service = UserService::new(PostgreSQL::new(pool.clone()), sender.clone());
         UserServiceServer::new(GrpcUserServiceImpl { repo: user_service })
     }
 }
@@ -33,16 +37,8 @@ impl GrpcUserService for GrpcUserServiceImpl {
     ) -> Result<Response<CreateUserResponse>, Status> {
         let command = CreateUser::from(request.into_inner());
 
-        match self.repo.handle_create_user(command).await {
-            Ok(_) => {
-                info!("User Created");
-                Ok(Response::new(CreateUserResponse {}))
-            }
-            Err(e) => {
-                error!("{}", e);
-                Err(Status::already_exists("User already Exists"))
-            }
-        }
+        self.repo.create_user(command).await;
+        Ok(Response::new(CreateUserResponse {}))
     }
 
     async fn get_user(

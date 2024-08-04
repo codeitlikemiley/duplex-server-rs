@@ -3,13 +3,14 @@ use axum::{
     Router,
 };
 use sqlx::{Pool, Postgres};
+use tokio::sync::mpsc;
 
-use crate::{services::UserService, Api, PostgreSQL};
+use crate::{commands::CommandMessage, services::UserService, Api, PostgreSQL};
 
 use super::controllers::{create_user, get_user_by_id};
 
-pub fn router(pool: Pool<Postgres>) -> HttpRouter {
-    let user_service = UserService::new(PostgreSQL::new(pool.clone()));
+pub fn router(pool: Pool<Postgres>, sender: mpsc::Sender<CommandMessage>) -> HttpRouter {
+    let user_service = UserService::new(PostgreSQL::new(pool.clone()), sender);
     Router::new()
         .route(Api::CreateUser.into(), post(create_user))
         .route(Api::GetUser.into(), get(get_user_by_id))

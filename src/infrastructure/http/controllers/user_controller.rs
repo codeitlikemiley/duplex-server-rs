@@ -12,16 +12,8 @@ pub async fn create_user(
     State(handler): State<UserService>,
     Json(payload): Json<commands::CreateUser>,
 ) -> impl IntoResponse {
-    match handler.handle_create_user(payload).await {
-        Ok(_) => {
-            info!("User Created");
-            "User created".into_response()
-        }
-        Err(_) => {
-            error!("Failed to Create User");
-            "Failed to create user".into_response()
-        }
-    }
+    handler.create_user(payload).await;
+    "User creation initiated".into_response()
 }
 pub async fn get_user_by_id(
     State(state): State<UserService>,
