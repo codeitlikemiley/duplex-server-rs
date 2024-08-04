@@ -359,14 +359,48 @@ pub async fn get_user_by_id(
 ### Testing APIs
 
 #### Create new User 
+
+1. Using GrpCurl
+
 ```http
 curl -X POST \
      -H "Content-Type: application/json" \
      -d '{"username": "testuser", "email": "testuser@example.com"}' \
-     http://127.0.0.1:3000/users
+     http://127.0.0.1:80/users
 ```
 
-#### Get User by UUID
-```http
-curl localhost:3000/users/01911459-8cfa-7e91-9f2a-4d3da4faa526
+2. Using Postman
+- Create new GRPC
+- Enter Url: `grpc://localhost:80`
+- Import `users.proto`
+- Add the Payload on `Message`
+
+```json
+{
+    "username": "uriah",
+    "email": "ceo@goldcoders.dev"
+}
 ```
+
+
+
+#### Get User by UUID
+
+1. Using GrpCurl
+```http
+curl localhost:80/users/01911459-8cfa-7e91-9f2a-4d3da4faa526
+```
+
+2. Using Postman
+- Create new GRPC
+- Enter Url: `grpc://localhost:80`
+- Import `users.proto`
+- Add the Payload on `Message`
+
+```json
+{
+    "id": "01911459-8cfa-7e91-9f2a-4d3da4faa526",
+}
+```
+
+
