@@ -6,6 +6,8 @@ package users;
 // while request and response for the messages
 service UserService {
     rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+
+    rpc GetUser(GetUserRequest) returns (GetUserResponse);
 }
 
 message CreateUserRequest {
@@ -15,3 +17,12 @@ message CreateUserRequest {
 
 message CreateUserResponse {}
 
+message GetUserRequest {
+    string id = 1;
+}
+
+message GetUserResponse {
+    string id = 1;
+    string username = 2;
+    string email = 3;
+}

@@ -9,8 +9,12 @@ pub use domain::events;
 pub use domain::models;
 
 pub use domain::repositories;
+pub use infrastructure::db;
 pub use infrastructure::http::controllers;
+pub use infrastructure::http::router::router;
 /// ---
 pub use infrastructure::http::routes::Api;
-pub use infrastructure::persistence;
+pub use infrastructure::listener::listener;
+pub use infrastructure::logger::init_logger;
 pub use infrastructure::proto;
+pub use infrastructure::repositories::PostgreSQL;

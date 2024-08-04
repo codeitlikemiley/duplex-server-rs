@@ -1,1 +1,3 @@
-pub mod users;
+mod users;
+
+pub use users::*;

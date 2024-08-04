@@ -1,8 +1,8 @@
 use uuid::Uuid;
 
 use crate::{
-    commands::CreateUser, events::UserCreated, models::User, persistence::PostgreSQL,
-    repositories::UserRepository,
+    commands::CreateUser, events::UserCreated, models::User, repositories::UserRepository,
+    PostgreSQL,
 };
 
 #[derive(Clone)]
