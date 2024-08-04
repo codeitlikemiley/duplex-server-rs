@@ -5,7 +5,7 @@ use crate::{
     PostgreSQL,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UserService {
     pub repo: PostgreSQL,
 }

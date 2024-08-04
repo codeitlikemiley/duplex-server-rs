@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{events::UserCreated, models, repositories::UserRepository};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PostgreSQL {
     db: Pool<Postgres>,
 }
