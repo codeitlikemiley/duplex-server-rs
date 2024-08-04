@@ -1,2 +1,2 @@
 mod user_commands;
-pub use user_commands::CreateUser;
+pub use user_commands::*;
