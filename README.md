@@ -563,7 +563,7 @@ impl GrpcUserService for GrpcUserServiceImpl {
 
 #### Create new User 
 
-1. Using GrpCurl
+1. Using Curl
 
 ```http
 curl -X POST \
@@ -589,7 +589,7 @@ curl -X POST \
 
 #### Get User by UUID
 
-1. Using GrpCurl
+1. Using Curl
 ```http
 curl localhost:80/users/01911459-8cfa-7e91-9f2a-4d3da4faa526
 ```
