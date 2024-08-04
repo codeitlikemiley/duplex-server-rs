@@ -5,18 +5,18 @@ use uuid::Uuid;
 use crate::{events::UserCreated, models, repositories::UserRepository};
 
 #[derive(Clone)]
-pub struct PgPool {
+pub struct PostgreSQL {
     db: Pool<Postgres>,
 }
 
-impl PgPool {
+impl PostgreSQL {
     pub fn new(db: Pool<Postgres>) -> Self {
         Self { db }
     }
 }
 
 #[async_trait]
-impl UserRepository for PgPool {
+impl UserRepository for PostgreSQL {
     async fn save_user(&self, user: models::User) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "INSERT INTO users (id,username,email) VALUES ($1,$2,$3)",

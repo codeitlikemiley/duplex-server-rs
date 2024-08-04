@@ -1,0 +1,17 @@
+syntax = "proto3";
+package users;
+
+// we can define here all our commands and querries
+// as rpc
+// while request and response for the messages
+service UserService {
+    rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+}
+
+message CreateUserRequest {
+    string username =1;
+    string email = 2;
+}
+
+message CreateUserResponse {}
+

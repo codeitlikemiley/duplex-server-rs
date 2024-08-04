@@ -6,10 +6,7 @@ use axum::{
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::{
-    commands,
-    services::{self, UserService},
-};
+use crate::{commands, services::UserService};
 
 pub async fn create_user(
     State(handler): State<UserService>,
@@ -27,7 +24,7 @@ pub async fn create_user(
     }
 }
 pub async fn get_user_by_id(
-    State(state): State<services::UserService>,
+    State(state): State<UserService>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
     match state.handle_get_user_by_id(id).await {

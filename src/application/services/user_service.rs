@@ -1,25 +1,22 @@
 use uuid::Uuid;
 
 use crate::{
-    commands::CreateUser,
-    db,
-    events::UserCreated,
-    models::{self},
+    commands::CreateUser, events::UserCreated, models::User, persistence::PostgreSQL,
     repositories::UserRepository,
 };
 
 #[derive(Clone)]
 pub struct UserService {
-    pub repo: db::PgPool,
+    pub repo: PostgreSQL,
 }
 
 impl UserService {
-    pub fn new(repo: db::PgPool) -> Self {
+    pub fn new(repo: PostgreSQL) -> Self {
         Self { repo }
     }
 
     pub async fn handle_create_user(&self, cmd: CreateUser) -> Result<(), sqlx::Error> {
-        let user = models::User {
+        let user = User {
             id: Uuid::now_v7(),
             username: cmd.username,
             email: cmd.email,
@@ -37,10 +34,7 @@ impl UserService {
         Ok(())
     }
 
-    pub async fn handle_get_user_by_id(
-        &self,
-        id: Uuid,
-    ) -> Result<Option<models::User>, sqlx::Error> {
+    pub async fn handle_get_user_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error> {
         self.repo.find_user_by_id(id).await
     }
 }
