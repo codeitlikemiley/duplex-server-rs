@@ -6,8 +6,12 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 axum = "^0.7.5"
+derive-new = "0.6.0"
+derive_builder = "0.20.0"
+derive_more = { version = "1.0.0", features = ["full"] }
 dotenvy = "0.15.7"
 hyper = { version = "1.4.1", features = ["full"] }
+nutype = { version = "0.4.3", features = ["regex", "serde"] }
 prost = "0.13.1"
 prost-derive = "0.13.1"
 prost-types = "0.13.1"
