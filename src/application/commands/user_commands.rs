@@ -39,6 +39,7 @@ impl CommandHandler {
             match command {
                 CommandMessage::CreateUser(cmd) => {
                     if let Err(e) = user_service.handle_create_user(cmd).await {
+                        //TODO: Add error Hander and bubble up this error to send 400
                         tracing::error!("Failed to handle CreateUser command: {}", e);
                     }
                 }
