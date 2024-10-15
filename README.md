@@ -10,6 +10,7 @@
 - rust
 - cargo
 - sqlx-cli
+- cargo-runner
 
 
 <details>
@@ -69,6 +70,12 @@ everytime you run this there will be new files added in `.sqlx`folder
 ```sh
 sqlx database reset
 ```
+
+7. Build our proto file
+
+create a new proto file in `./proto` folder 
+
+go to build.rs then press CMD + R (with cargo runner)
 
 </details>
 
