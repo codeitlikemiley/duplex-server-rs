@@ -1,6 +1,77 @@
-## DDD + CQRS + EventSourcing 
+# Domain Driven Design in Rust
 
-> Duplex Using REST API and GRPC
+> Using Axum + Tonic for Duplex connection for REST and GRPC
+
+### Getting Started
+
+#### Requirements
+
+- postgresql
+- rust
+- cargo
+- sqlx-cli
+
+
+<details>
+
+<summary>Set up Database</summary>
+
+1. add to your ENV to your .bashrc or .zshrc
+
+```sh
+export DATABASE_URL="postgres://username@localhost:5432/ddd"
+```
+
+we can use cargo-runner to set up ENV, press CMD+SHIFT+R 
+then pick env then add `DATABASE_URL="postgres://username@localhost:5432/ddd"`
+
+the next the we run our app with CMD + R it would have that ENV passed on the command
+
+2. Create Database
+
+```sh
+sqlx database create
+```
+
+3. Create migration
+
+```sh
+sqlx migrate add -r <name>
+```
+
+Note: if sqlx didnt produce 2 files with *.up.sql and *.down.sql , you need to manually rename and add the down migration
+
+4. Migration
+
+```sh
+slqx migrate run
+```
+
+5. Prepare Sqlx Compile Time Check 
+
+```sh
+cargo sqlx prepare
+```
+NOTE: you need to add on your vscode settings.json
+
+```json
+{
+    "rust-analyzer.cargo.extraEnv": {
+        "SQLX_OFFLINE": "1",
+      },
+}
+```
+
+everytime you run this there will be new files added in `.sqlx`folder
+
+6. Reset Migration
+
+```sh
+sqlx database reset
+```
+
+</details>
+
 
 ### DDD Traits
 <details>
