@@ -20,12 +20,22 @@
 - [x] Check constitution compliance
 
 ## Implementation Phase 🔄
-- [ ] Create shared error types module
-- [ ] Implement error translator service
-- [ ] Update gRPC services to use shared errors
-- [ ] Update HTTP controllers to use shared errors
-- [ ] Add error context and debugging information
-- [ ] Implement sensitive data filtering
+- [x] T100 - Write unit tests for AppError enum (must fail first - no implementation yet) ✅
+- [ ] T101 - Write unit tests for ErrorTranslator service (must fail first)
+- [ ] T102 - Write integration tests for error conversion traits
+- [ ] T103 - Write tests for UserService error handling
+- [ ] T104 - Write tests for gRPC error responses
+- [ ] T105 - Write tests for HTTP error responses
+- [ ] T200 - Create shared error types module (src/domain/errors.rs)
+- [ ] T201 - Implement error translator service (src/infrastructure/errors/mod.rs)
+- [ ] T202 - Add error conversion traits for sqlx::Error → AppError
+- [ ] T203 - Update Cargo.toml dependencies if needed
+- [ ] T204 - Update UserService to return Result<T, AppError>
+- [ ] T205 - Add error conversion helpers for JWT and other service errors
+- [ ] T206 - Update gRPC services to use ErrorTranslator::to_grpc_status
+- [ ] T207 - Update HTTP controllers to use ErrorTranslator::to_http_response
+- [ ] T208 - Add error context and debugging information
+- [ ] T209 - Implement sensitive data filtering
 
 ## Testing Phase 🧪
 - [ ] Write unit tests for error handling

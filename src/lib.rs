@@ -5,6 +5,7 @@ mod infrastructure;
 pub use application::commands;
 pub use application::services;
 /// ---
+pub use domain::errors;
 pub use domain::events;
 pub use domain::models;
 
