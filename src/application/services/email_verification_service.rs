@@ -2,10 +2,7 @@ use chrono::{Duration, Utc};
 use rand::Rng;
 use uuid::Uuid;
 
-use crate::{
-    errors::AppError,
-    PostgreSQL,
-};
+use crate::{PostgreSQL, errors::AppError};
 
 pub struct EmailVerificationToken {
     pub id: Uuid,
