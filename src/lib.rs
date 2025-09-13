@@ -1,6 +1,6 @@
 mod application;
 mod domain;
-mod infrastructure;
+pub mod infrastructure;
 
 pub use application::commands;
 pub use application::services;

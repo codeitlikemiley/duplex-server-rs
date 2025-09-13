@@ -3,7 +3,7 @@ use tracing::warn;
 
 use crate::infrastructure::auth::{Claims, JwtService};
 
-pub fn auth_interceptor(mut request: Request<()>) -> Result<Request<()>, Status> {
+pub fn auth_interceptor<T>(mut request: Request<T>) -> Result<Request<T>, Status> {
     let jwt_service = JwtService::default();
 
     // Extract token from authorization metadata
@@ -22,9 +22,9 @@ pub fn auth_interceptor(mut request: Request<()>) -> Result<Request<()>, Status>
     let token = match token {
         Some(t) if !t.is_empty() => t,
         _ => {
-            warn!("Missing or invalid authorization header");
+            warn!("Auth Interceptor: Missing or invalid authorization header");
             return Err(Status::unauthenticated(
-                "Missing or invalid authorization header",
+                "❌ Missing or invalid authorization header. Use format: 'authorization: Bearer <token>'",
             ));
         }
     };
@@ -32,13 +32,16 @@ pub fn auth_interceptor(mut request: Request<()>) -> Result<Request<()>, Status>
     // Verify token
     match jwt_service.verify_token(token) {
         Ok(claims) => {
-            // Store claims in request extensions
-            request.extensions_mut().insert(claims);
+            // Store claims in request extensions for handlers to access
+            request.extensions_mut().insert(claims.clone());
+            tracing::info!("Auth Interceptor: JWT verified for user: {}", claims.sub);
             Ok(request)
         }
         Err(e) => {
-            warn!("Invalid JWT token: {:?}", e);
-            Err(Status::unauthenticated("Invalid token"))
+            warn!("Auth Interceptor: Invalid JWT token - {:?}", e);
+            Err(Status::unauthenticated(
+                "❌ Invalid or expired JWT token. Please login again.",
+            ))
         }
     }
 }

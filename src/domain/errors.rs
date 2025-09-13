@@ -132,6 +132,37 @@ impl From<sqlx::Error> for AppError {
     }
 }
 
+/// Conversion from jsonwebtoken::errors::Error to AppError
+impl From<jsonwebtoken::errors::Error> for AppError {
+    fn from(err: jsonwebtoken::errors::Error) -> Self {
+        AppError::Authentication {
+            message: format!("JWT token error: {}", err),
+        }
+    }
+}
+
+/// Helper function to convert UUID parsing errors
+pub fn uuid_parse_error(input: &str) -> AppError {
+    AppError::Validation {
+        field: "id".to_string(),
+        message: format!("Invalid UUID format: {}", input),
+    }
+}
+
+/// Helper function for password hashing errors
+pub fn password_hash_error() -> AppError {
+    AppError::Internal {
+        message: "Password hashing failed".to_string(),
+    }
+}
+
+/// Helper function for password verification errors
+pub fn password_verify_error() -> AppError {
+    AppError::Authentication {
+        message: "Invalid password".to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
