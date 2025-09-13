@@ -1,5 +1,10 @@
 CREATE TABLE users (
     id UUID PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE, 
+    username VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE events (
+    id UUID PRIMARY KEY,
+    payload JSONB NOT NULL
 )

@@ -34,3 +34,19 @@ pub async fn get_user_by_id(
         }
     }
 }
+
+pub async fn login(
+    State(state): State<UserService>,
+    Json(payload): Json<commands::Login>,
+) -> impl IntoResponse {
+    match state.handle_login(payload).await {
+        Ok(token) => {
+            info!("Login successful, token: {}", token);
+            Json(serde_json::json!({"token": token})).into_response()
+        }
+        Err(_) => {
+            error!("Login failed");
+            "Login failed".into_response()
+        }
+    }
+}

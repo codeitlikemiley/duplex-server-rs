@@ -5,10 +5,10 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    commands::{CommandMessage, CreateUser},
+    commands::{CommandMessage, CreateUser, Login},
     proto::{
         user_service_server::{UserService as GrpcUserService, UserServiceServer},
-        CreateUserRequest, CreateUserResponse, GetUserRequest, GetUserResponse,
+        CreateUserRequest, CreateUserResponse, GetUserRequest, GetUserResponse, LoginRequest, LoginResponse,
     },
     services::UserService,
     PostgreSQL,
@@ -62,6 +62,28 @@ impl GrpcUserService for GrpcUserServiceImpl {
             Err(e) => {
                 error!("{}", e);
                 Err(Status::not_found("User Not Found"))
+            }
+        }
+    }
+
+    async fn login(
+        &self,
+        request: Request<LoginRequest>,
+    ) -> Result<Response<LoginResponse>, Status> {
+        let login_req = request.into_inner();
+        let command = Login {
+            email: login_req.email,
+            password: login_req.password,
+        };
+
+        match self.repo.handle_login(command).await {
+            Ok(token) => {
+                info!("Login successful, token: {}", token);
+                Ok(Response::new(LoginResponse { token }))
+            }
+            Err(_) => {
+                error!("Login failed");
+                Err(Status::unauthenticated("Invalid credentials"))
             }
         }
     }

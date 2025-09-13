@@ -1,4 +1,4 @@
-use axum::async_trait;
+use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
@@ -19,10 +19,11 @@ impl PostgreSQL {
 impl UserRepository for PostgreSQL {
     async fn save_user(&self, user: models::User) -> Result<(), sqlx::Error> {
         let result = sqlx::query!(
-            "INSERT INTO users (id,username,email) VALUES ($1,$2,$3)",
+            "INSERT INTO users (id,username,email,password_hash) VALUES ($1,$2,$3,$4)",
             user.id,
             &user.username,
             &user.email,
+            &user.password_hash,
         )
         .execute(&self.db)
         .await?;
