@@ -15,8 +15,10 @@ pub fn services(
         .build_v1alpha()
         .unwrap();
 
+    let user_service = GrpcUserServiceImpl::new(pool.clone(), sender);
+
     // Use Routes to create an axum router
     tonic::service::Routes::new(reflection_service)
-        .add_service(GrpcUserServiceImpl::new(pool.clone(), sender))
+        .add_service(user_service)
         .into_axum_router()
 }

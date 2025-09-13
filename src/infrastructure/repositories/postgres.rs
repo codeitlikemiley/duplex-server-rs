@@ -56,4 +56,10 @@ impl UserRepository for PostgreSQL {
             .fetch_optional(&self.db)
             .await
     }
+
+    async fn find_user_by_email(&self, email: &str) -> Result<Option<models::User>, sqlx::Error> {
+        sqlx::query_as!(models::User, "SELECT * from users WHERE email = $1", email)
+            .fetch_optional(&self.db)
+            .await
+    }
 }

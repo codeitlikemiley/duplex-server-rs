@@ -8,4 +8,5 @@ pub trait UserRepository {
     async fn save_user(&self, user: User) -> Result<(), sqlx::Error>;
     async fn save_event(&self, event: UserCreated) -> Result<(), sqlx::Error>;
     async fn find_user_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error>;
+    async fn find_user_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error>;
 }

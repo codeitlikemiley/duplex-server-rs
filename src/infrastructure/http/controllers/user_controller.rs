@@ -1,12 +1,12 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     response::IntoResponse,
     Json,
 };
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::{commands, services::UserService};
+use crate::{commands, services::UserService, infrastructure::auth::Claims};
 
 pub async fn create_user(
     State(handler): State<UserService>,
@@ -49,4 +49,16 @@ pub async fn login(
             "Login failed".into_response()
         }
     }
+}
+
+#[axum::debug_handler]
+pub async fn get_profile(
+    Extension(claims): Extension<Claims>,
+) -> impl IntoResponse {
+    info!("Profile accessed for user: {}", claims.sub);
+    Json(serde_json::json!({
+        "user_id": claims.sub,
+        "email": claims.email,
+        "message": "This is a protected endpoint"
+    })).into_response()
 }
