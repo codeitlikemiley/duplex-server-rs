@@ -12,18 +12,18 @@ use crate::{
     errors::AppError,
     infrastructure::auth::JwtService,
     models::{User, UserProfile, UserStatus},
-    repositories::{UserRepository, UserProfileRepository},
+    repositories::{UserProfileRepository, UserRepository},
 };
 
 #[derive(Clone)]
-pub struct UserApplicationService {
+pub struct UserService {
     pub repo: PostgreSQL,
     pub profile_repo: PostgreSQL,
     pub sender: mpsc::Sender<CommandMessage>,
     pub jwt_service: JwtService,
 }
 
-impl UserApplicationService {
+impl UserService {
     pub fn new(repo: PostgreSQL, sender: mpsc::Sender<CommandMessage>) -> Self {
         Self {
             repo: repo.clone(),
@@ -33,14 +33,12 @@ impl UserApplicationService {
         }
     }
 
-    pub async fn handle_create_user(&self, cmd: CreateUser) -> Result<(), AppError> {
+    pub async fn handle_create_user(&self, cmd: CreateUser) -> Result<(), sqlx::Error> {
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
         let password_hash = argon2
             .hash_password(cmd.password.as_bytes(), &salt)
-            .map_err(|_| AppError::Internal {
-                message: "Password hashing failed".to_string(),
-            })?
+            .map_err(|_| sqlx::Error::RowNotFound)?
             .to_string();
 
         let now = Utc::now();
@@ -56,46 +54,34 @@ impl UserApplicationService {
             last_login_at: None,
         };
 
-        self.repo.save_user(user).await.map_err(|e| AppError::Database {
-            message: format!("Failed to save user: {}", e),
-        })?;
+        self.repo.save_user(user).await?;
         Ok(())
     }
 
-    pub async fn handle_get_user_by_id(&self, id: Uuid) -> Result<Option<User>, AppError> {
-        self.repo.find_user_by_id(id).await.map_err(|e| AppError::Database {
-            message: format!("Failed to query user: {}", e),
-        })
+    pub async fn handle_get_user_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error> {
+        self.repo.find_user_by_id(id).await
     }
 
-    pub async fn handle_login(&self, cmd: Login) -> Result<String, AppError> {
+    pub async fn handle_login(&self, cmd: Login) -> Result<String, sqlx::Error> {
         // Find user by email
         let user = match self.repo.find_user_by_email(&cmd.email).await? {
             Some(user) => user,
-            None => return Err(AppError::Authentication {
-                message: "Invalid email or password".to_string(),
-            }),
+            None => return Err(sqlx::Error::RowNotFound), // User not found
         };
 
         // Verify password
         let argon2 = Argon2::default();
         let parsed_hash = argon2::password_hash::PasswordHash::new(&user.password_hash)
-            .map_err(|_| AppError::Internal {
-                message: "Password hash parsing failed".to_string(),
-            })?;
+            .map_err(|_| sqlx::Error::RowNotFound)?;
 
         argon2
             .verify_password(cmd.password.as_bytes(), &parsed_hash)
-            .map_err(|_| AppError::Authentication {
-                message: "Invalid email or password".to_string(),
-            })?;
+            .map_err(|_| sqlx::Error::RowNotFound)?; // Invalid password
 
         // Generate JWT token
         self.jwt_service
             .generate_token(user.id, &user.email)
-            .map_err(|_| AppError::Internal {
-                message: "Token generation failed".to_string(),
-            })
+            .map_err(|_| sqlx::Error::RowNotFound)
     }
 
     /// Handle user registration with profile creation and email verification
@@ -142,7 +128,11 @@ impl UserApplicationService {
         // TODO: Send email verification
         // self.send_verification_email(&user).await?;
 
-        tracing::info!("User registered successfully: {} ({})", user.username, user.email);
+        tracing::info!(
+            "User registered successfully: {} ({})",
+            user.username,
+            user.email
+        );
         Ok(())
     }
 

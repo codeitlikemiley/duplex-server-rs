@@ -1,10 +1,11 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 use crate::domain::Model;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "user_status", rename_all = "PascalCase")]
 pub enum UserStatus {
     Active,
     Inactive,
@@ -12,7 +13,7 @@ pub enum UserStatus {
     PendingVerification,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct User {
     pub id: Uuid,
     pub username: String,

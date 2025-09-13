@@ -48,12 +48,20 @@ impl GrpcUserService for GrpcUserServiceImpl {
         // Handle user creation with proper error conversion
         match self.repo.handle_create_user(command).await {
             Ok(()) => {
-                tracing::info!("CreateUser: Successfully created user: {} ({})", req.username, req.email);
+                tracing::info!(
+                    "CreateUser: Successfully created user: {} ({})",
+                    req.username,
+                    req.email
+                );
                 Ok(Response::new(CreateUserResponse {}))
             }
             Err(app_error) => {
-                tracing::warn!("CreateUser: Failed to create user {}: {:?}", req.username, app_error);
-                Err(ErrorTranslator::to_grpc_status(app_error))
+                tracing::warn!(
+                    "CreateUser: Failed to create user {}: {:?}",
+                    req.username,
+                    app_error
+                );
+                Err(ErrorTranslator::to_grpc_status(app_error.into()))
             }
         }
     }
@@ -96,7 +104,7 @@ impl GrpcUserService for GrpcUserServiceImpl {
             }
             Err(app_error) => {
                 tracing::error!("GetUser: Database error for ID {}: {:?}", id_str, app_error);
-                Err(ErrorTranslator::to_grpc_status(app_error))
+                Err(ErrorTranslator::to_grpc_status(app_error.into()))
             }
         }
     }
@@ -119,7 +127,7 @@ impl GrpcUserService for GrpcUserServiceImpl {
             }
             Err(app_error) => {
                 tracing::warn!("Login: Failed login attempt for user: {}", email_clone);
-                Err(ErrorTranslator::to_grpc_status(app_error))
+                Err(ErrorTranslator::to_grpc_status(app_error.into()))
             }
         }
     }
@@ -166,12 +174,17 @@ impl GrpcUserService for GrpcUserServiceImpl {
             }
         };
 
-        tracing::info!("GetProfile: Successfully accessed profile for user: {} ({})", claims.sub, claims.email);
+        tracing::info!(
+            "GetProfile: Successfully accessed profile for user: {} ({})",
+            claims.sub,
+            claims.email
+        );
 
         Ok(Response::new(GetProfileResponse {
             user_id: claims.sub.clone(),
             email: claims.email.clone(),
-            message: "✅ Profile accessed successfully - this is a protected gRPC endpoint".to_string(),
+            message: "✅ Profile accessed successfully - this is a protected gRPC endpoint"
+                .to_string(),
         }))
     }
 }

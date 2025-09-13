@@ -4,19 +4,16 @@
 //! for consistent error handling across the API.
 
 use axum::{
+    Json,
     extract::{Extension, Path, State},
     response::IntoResponse,
-    Json,
 };
 use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    commands,
-    errors::AppError,
-    infrastructure::errors::ErrorTranslator,
-    services::UserService,
-    infrastructure::auth::Claims,
+    commands, errors::AppError, infrastructure::auth::Claims,
+    infrastructure::errors::ErrorTranslator, services::UserService,
 };
 
 pub async fn create_user(
@@ -28,11 +25,12 @@ pub async fn create_user(
             info!("User creation successful");
             Json(serde_json::json!({
                 "message": "User creation initiated successfully"
-            })).into_response()
+            }))
+            .into_response()
         }
         Err(app_error) => {
             error!("User creation failed: {:?}", app_error);
-            ErrorTranslator::to_http_response(app_error)
+            ErrorTranslator::to_http_response(app_error.into())
         }
     }
 }
@@ -56,7 +54,7 @@ pub async fn get_user_by_id(
         }
         Err(app_error) => {
             error!("Failed to fetch user {}: {:?}", id, app_error);
-            ErrorTranslator::to_http_response(app_error)
+            ErrorTranslator::to_http_response(app_error.into())
         }
     }
 }
@@ -73,19 +71,18 @@ pub async fn login(
         }
         Err(app_error) => {
             error!("Login failed for user {}: {:?}", email, app_error);
-            ErrorTranslator::to_http_response(app_error)
+            ErrorTranslator::to_http_response(app_error.into())
         }
     }
 }
 
 #[axum::debug_handler]
-pub async fn get_profile(
-    Extension(claims): Extension<Claims>,
-) -> impl IntoResponse {
+pub async fn get_profile(Extension(claims): Extension<Claims>) -> impl IntoResponse {
     info!("Profile accessed for user: {}", claims.sub);
     Json(serde_json::json!({
         "user_id": claims.sub,
         "email": claims.email,
         "message": "This is a protected endpoint"
-    })).into_response()
+    }))
+    .into_response()
 }

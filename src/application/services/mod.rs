@@ -1,3 +1,3 @@
 mod user_service;
 
-pub use user_service::UserApplicationService;
+pub use user_service::UserService;

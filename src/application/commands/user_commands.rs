@@ -2,7 +2,7 @@ use serde::Deserialize;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::{domain::Command, proto::CreateUserRequest, services::UserApplicationService};
+use crate::{domain::Command, proto::CreateUserRequest, services::UserService};
 
 #[derive(Deserialize, Debug)]
 pub struct CreateUser {
@@ -73,7 +73,7 @@ impl CommandHandler {
         CommandHandler { receiver }
     }
 
-    pub async fn run(self, user_service: UserApplicationService) {
+    pub async fn run(self, user_service: UserService) {
         let mut receiver = self.receiver;
         while let Some(command) = receiver.recv().await {
             match command {
