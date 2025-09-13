@@ -1,8 +1,4 @@
-use argon2::{
-    Argon2, PasswordHasher, PasswordVerifier,
-    password_hash::{SaltString, rand_core::OsRng},
-};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -12,7 +8,6 @@ use crate::{
     errors::AppError,
     infrastructure::auth::JwtService,
     models::{User, UserProfile, UserStatus},
-    repositories::{UserProfileRepository, UserRepository},
 };
 
 #[derive(Clone)]
@@ -33,13 +28,9 @@ impl UserService {
         }
     }
 
-    pub async fn handle_create_user(&self, cmd: CreateUser) -> Result<(), sqlx::Error> {
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        let password_hash = argon2
-            .hash_password(cmd.password.as_bytes(), &salt)
-            .map_err(|_| sqlx::Error::RowNotFound)?
-            .to_string();
+    pub async fn handle_create_user(&self, cmd: CreateUser) -> Result<(), AppError> {
+        // Hash password using the password service
+        let password_hash = super::PasswordService::hash_password(&cmd.password)?;
 
         let now = Utc::now();
         let user = User {
@@ -62,41 +53,51 @@ impl UserService {
         self.repo.find_user_by_id(id).await
     }
 
-    pub async fn handle_login(&self, cmd: Login) -> Result<String, sqlx::Error> {
+    pub async fn handle_login(&self, cmd: Login) -> Result<String, AppError> {
         // Find user by email
-        let user = match self.repo.find_user_by_email(&cmd.email).await? {
-            Some(user) => user,
-            None => return Err(sqlx::Error::RowNotFound), // User not found
-        };
+        let user = self
+            .repo
+            .find_user_by_email(&cmd.email)
+            .await?
+            .ok_or_else(|| AppError::Authentication {
+                message: "Invalid email or password".to_string(),
+            })?;
+
+        // Check if email is verified
+        if !user.email_verified {
+            return Err(AppError::Authentication {
+                message: "Please verify your email before logging in".to_string(),
+            });
+        }
+
+        // Check if account is active
+        if user.status != UserStatus::Active {
+            return Err(AppError::Authentication {
+                message: "Account is not active".to_string(),
+            });
+        }
 
         // Verify password
-        let argon2 = Argon2::default();
-        let parsed_hash = argon2::password_hash::PasswordHash::new(&user.password_hash)
-            .map_err(|_| sqlx::Error::RowNotFound)?;
+        super::PasswordService::verify_password(&cmd.password, &user.password_hash)?;
 
-        argon2
-            .verify_password(cmd.password.as_bytes(), &parsed_hash)
-            .map_err(|_| sqlx::Error::RowNotFound)?; // Invalid password
+        // Create session and return token
+        let session_service = super::SessionService::new(self.repo.clone());
+        let token = session_service
+            .create_session(user.id, &user.email, None, None)
+            .await?;
 
-        // Generate JWT token
-        self.jwt_service
-            .generate_token(user.id, &user.email)
-            .map_err(|_| sqlx::Error::RowNotFound)
+        Ok(token)
     }
 
     /// Handle user registration with profile creation and email verification
     pub async fn handle_register_user(&self, cmd: RegisterUser) -> Result<(), AppError> {
         let now = Utc::now();
 
+        // Validate password strength
+        super::PasswordService::validate_password_strength(&cmd.password)?;
+
         // Hash password
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        let password_hash = argon2
-            .hash_password(cmd.password.as_bytes(), &salt)
-            .map_err(|_| AppError::Internal {
-                message: "Password hashing failed".to_string(),
-            })?
-            .to_string();
+        let password_hash = super::PasswordService::hash_password(&cmd.password)?;
 
         // Create user with pending verification status
         let user = User {
@@ -125,8 +126,16 @@ impl UserService {
         // Save profile to database
         self.profile_repo.save_profile(profile).await?;
 
-        // TODO: Send email verification
-        // self.send_verification_email(&user).await?;
+        // Create and send email verification token
+        let email_service = super::EmailVerificationService::new(self.repo.clone());
+        let verification_token = email_service.create_verification_token(user.id).await?;
+
+        // TODO: Send actual email with verification_token
+        tracing::info!(
+            "Verification token created for user {}: {}",
+            user.email,
+            verification_token
+        );
 
         tracing::info!(
             "User registered successfully: {} ({})",
@@ -138,11 +147,10 @@ impl UserService {
 
     /// Handle email verification
     pub async fn handle_verify_email(&self, cmd: VerifyEmail) -> Result<(), AppError> {
-        // TODO: Verify token and update user status
-        // This would involve checking the verification token against stored tokens
-        // and updating the user's email_verified status to true
+        let email_service = super::EmailVerificationService::new(self.repo.clone());
+        email_service.verify_email_token(cmd.user_id, &cmd.verification_token).await?;
 
-        tracing::info!("Email verification attempted for user: {}", cmd.user_id);
+        tracing::info!("Email verified successfully for user: {}", cmd.user_id);
         Ok(())
     }
 

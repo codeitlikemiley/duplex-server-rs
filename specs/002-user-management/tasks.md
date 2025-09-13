@@ -22,11 +22,11 @@
 
 ## Implementation Phase 🔄
 ### Core User Management (T200-T209)
-- [ ] T200 - Extend User model with profile fields (name, avatar, preferences)
-- [ ] T201 - Create UserProfile entity and repository
-- [ ] T202 - Implement user registration with email verification
-- [ ] T203 - Implement user login with session management
-- [ ] T204 - Implement password change functionality
+- [x] T200 - Extend User model with profile fields (name, avatar, preferences) ✅
+- [x] T201 - Create UserProfile entity and repository ✅
+- [x] T202 - Implement user registration with email verification ✅
+- [x] T203 - Implement user login with session management ✅
+- [x] T204 - Implement password change functionality ✅
 - [ ] T205 - Implement password reset via email
 - [ ] T206 - Implement user profile update operations
 - [ ] T207 - Implement account deactivation and deletion
