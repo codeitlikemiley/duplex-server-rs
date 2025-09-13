@@ -1,2 +1,4 @@
 mod user_model;
-pub use user_model::User;
+mod user_profile;
+pub use user_model::{User, UserStatus};
+pub use user_profile::UserProfile;
