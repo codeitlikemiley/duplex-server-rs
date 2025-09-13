@@ -12,10 +12,10 @@ mod grpc_error_tests {
 
         // For now, just verify the expected behavior conceptually
         let expected_codes = vec![
-            ("NotFound", "User not found"),
-            ("InvalidArgument", "Invalid user ID format"),
-            ("Unauthenticated", "Invalid credentials"),
-            ("Internal", "Internal server error"),
+            ("NotFound", "❌ User not found"),
+            ("InvalidArgument", "❌ Invalid user ID format"),
+            ("Unauthenticated", "❌ Invalid credentials"),
+            ("Internal", "❌ Internal server error"),
         ];
 
         assert_eq!(expected_codes.len(), 4);

@@ -11,10 +11,10 @@ mod http_error_tests {
         // This test will pass once ErrorTranslator is integrated
 
         let expected_mappings = vec![
-            ("NOT_FOUND", "User not found"),
-            ("BAD_REQUEST", "Invalid input format"),
-            ("UNAUTHORIZED", "Invalid credentials"),
-            ("INTERNAL_SERVER_ERROR", "Internal server error"),
+            ("NOT_FOUND", "❌ User not found"),
+            ("BAD_REQUEST", "❌ Invalid input format"),
+            ("UNAUTHORIZED", "❌ Invalid credentials"),
+            ("INTERNAL_SERVER_ERROR", "❌ Internal server error"),
         ];
 
         assert_eq!(expected_mappings.len(), 4);
