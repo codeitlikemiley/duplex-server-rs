@@ -1,7 +1,7 @@
 use axum::{extract::Request, http::header::CONTENT_TYPE};
 use coqrs::{
-    commands::CommandHandler, db, grpc_services, init_logger, router, services::UserService,
-    PostgreSQL,
+    PostgreSQL, commands::CommandHandler, db, grpc_services, init_logger, router,
+    services::UserService,
 };
 use tokio::sync::mpsc;
 use tower::{make::Shared, steer::Steer};

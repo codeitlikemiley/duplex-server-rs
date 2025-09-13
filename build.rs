@@ -27,7 +27,7 @@ fn main() {
         }
     }
 
-    let mut config = tonic_build::configure()
+    let mut config = tonic_prost_build::configure()
         .out_dir("src/infrastructure/proto")
         .build_server(true)
         .build_client(true)
@@ -38,7 +38,7 @@ fn main() {
     }
 
     config
-        .compile(&proto_files, &["proto"])
+        .compile_protos(&proto_files, &["proto".to_owned()])
         .unwrap_or_else(|e| panic!("Failed to compile protobuf {:?}", e));
 }
 

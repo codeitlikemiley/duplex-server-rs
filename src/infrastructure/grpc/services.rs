@@ -12,15 +12,13 @@ pub fn services(
 ) -> axum::routing::Router {
     let reflection_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
-        .build()
+        .build_v1alpha()
         .unwrap();
 
-    tonic::transport::Server::builder()
-        .accept_http1(true)
-        .add_service(reflection_service)
-        .add_service(tonic_web::enable(GrpcUserServiceImpl::new(
-            pool.clone(),
-            sender,
-        )))
-        .into_router()
+    let user_service = GrpcUserServiceImpl::new(pool.clone(), sender);
+
+    // Use Routes to create an axum router
+    tonic::service::Routes::new(reflection_service)
+        .add_service(user_service)
+        .into_axum_router()
 }
