@@ -13,7 +13,9 @@ use uuid::Uuid;
 
 use crate::{
     commands, errors::AppError, infrastructure::auth::Claims,
-    infrastructure::errors::ErrorTranslator, services::{UserService, PasswordService},
+    infrastructure::errors::ErrorTranslator,
+    services::{UserService, PasswordService, PasswordResetService, ProfileService, UpdateProfileRequest, UpdateAccountRequest},
+    infrastructure::email::EmailServiceFactory,
 };
 
 pub async fn create_user(
@@ -163,4 +165,88 @@ pub async fn get_profile(Extension(claims): Extension<Claims>) -> impl IntoRespo
         "message": "This is a protected endpoint"
     }))
     .into_response()
+}
+
+// Password Reset Request
+#[derive(serde::Deserialize)]
+pub struct PasswordResetRequest {
+    pub email: String,
+}
+
+pub async fn request_password_reset(
+    State(db): State<crate::PostgreSQL>,
+    Json(payload): Json<PasswordResetRequest>,
+) -> impl IntoResponse {
+    let email_service = EmailServiceFactory::from_env()
+        .unwrap_or_else(|_| EmailServiceFactory::console());
+
+    let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:80".to_string());
+
+    let pool = db.pool();
+    let reset_service = PasswordResetService::new(
+        pool,
+        email_service,
+        base_url,
+    );
+
+    match reset_service.request_password_reset(&payload.email).await {
+        Ok(()) => {
+            info!("Password reset requested for: {}", payload.email);
+            Json(serde_json::json!({
+                "message": "If the email exists, a password reset link has been sent."
+            }))
+            .into_response()
+        }
+        Err(app_error) => {
+            error!("Password reset request failed: {:?}", app_error);
+            // Always return success to prevent email enumeration
+            Json(serde_json::json!({
+                "message": "If the email exists, a password reset link has been sent."
+            }))
+            .into_response()
+        }
+    }
+}
+
+// Password Reset Confirmation
+#[derive(serde::Deserialize)]
+pub struct ResetPasswordRequest {
+    pub user_id: Uuid,
+    pub token: String,
+    pub new_password: String,
+}
+
+pub async fn reset_password(
+    State(db): State<crate::PostgreSQL>,
+    Json(payload): Json<ResetPasswordRequest>,
+) -> impl IntoResponse {
+    let email_service = EmailServiceFactory::from_env()
+        .unwrap_or_else(|_| EmailServiceFactory::console());
+
+    let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:80".to_string());
+
+    let pool = db.pool();
+    let reset_service = PasswordResetService::new(
+        pool,
+        email_service,
+        base_url,
+    );
+
+    match reset_service.reset_password(
+        payload.user_id,
+        &payload.token,
+        &payload.new_password,
+    ).await {
+        Ok(()) => {
+            info!("Password reset successful for user: {}", payload.user_id);
+            Json(serde_json::json!({
+                "message": "Password has been reset successfully. You can now login with your new password."
+            }))
+            .into_response()
+        }
+        Err(app_error) => {
+            error!("Password reset failed for user {}: {:?}", payload.user_id, app_error);
+            ErrorTranslator::to_http_response(app_error)
+        }
+    }
 }

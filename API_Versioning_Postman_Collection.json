@@ -1,0 +1,1097 @@
+{
+	"info": {
+		"name": "Quake API Versioning Tests",
+		"description": "Comprehensive collection for testing API versioning with V1, V2, and V3 endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"exec": [
+					""
+				],
+				"type": "text/javascript"
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"exec": [
+					""
+				],
+				"type": "text/javascript"
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:80",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "test_user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "test_username",
+			"value": "testuser_versioning",
+			"type": "string"
+		},
+		{
+			"key": "test_email",
+			"value": "testuser_versioning@example.com",
+			"type": "string"
+		},
+		{
+			"key": "test_password",
+			"value": "TestPassword123!",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "API Info & Version Discovery",
+			"item": [
+				{
+					"name": "Get API Info (No Version)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get API Info (V1)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get API Info (V2)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get API Info (V3)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v3",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v3"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Unsupported Version (V4)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v4",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v4"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "V1 API Tests (Deprecated)",
+			"item": [
+				{
+					"name": "V1 Register User (Basic)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response includes deprecation headers\", function () {",
+									"    pm.response.to.have.header(\"Deprecation\");",
+									"    pm.response.to.have.header(\"Warning\");",
+									"    pm.response.to.have.header(\"X-API-Version\");",
+									"});",
+									"",
+									"pm.test(\"API version is V1\", function () {",
+									"    pm.expect(pm.response.headers.get(\"X-API-Version\")).to.eql(\"v1\");",
+									"});",
+									"",
+									"pm.test(\"Response contains versioned structure\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"api_version\");",
+									"    pm.expect(jsonData.api_version).to.eql(\"V1\");",
+									"    pm.expect(jsonData).to.have.property(\"meta\");",
+									"    pm.expect(jsonData.meta).to.have.property(\"deprecation_info\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{test_username}}_v1\",\n    \"email\": \"{{test_username}}_v1@example.com\",\n    \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "V1 Login User (Basic Response)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains basic V1 login structure\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property(\"token\");",
+									"    pm.expect(jsonData.data).to.have.property(\"token_type\", \"Bearer\");",
+									"    // V1 doesn't include user info or security details",
+									"    pm.expect(jsonData.data).to.not.have.property(\"user\");",
+									"    pm.expect(jsonData.data).to.not.have.property(\"security\");",
+									"});",
+									"",
+									"// Save token for subsequent requests",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"access_token\", jsonData.data.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{test_username}}_v1@example.com\",\n    \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "V1 Get Profile (Basic Fields)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"V1 profile contains only basic fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var profile = jsonData.data;",
+									"    pm.expect(profile).to.have.property(\"user_id\");",
+									"    pm.expect(profile).to.have.property(\"first_name\");",
+									"    pm.expect(profile).to.have.property(\"last_name\");",
+									"    pm.expect(profile).to.have.property(\"email\");",
+									"    // V1 doesn't include advanced fields",
+									"    pm.expect(profile).to.not.have.property(\"bio\");",
+									"    pm.expect(profile).to.not.have.property(\"location\");",
+									"    pm.expect(profile).to.not.have.property(\"website\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "V2 API Tests (Stable)",
+			"item": [
+				{
+					"name": "V2 Register User (Enhanced)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"No deprecation headers for V2\", function () {",
+									"    pm.expect(pm.response.headers.has(\"Deprecation\")).to.be.false;",
+									"    pm.expect(pm.response.headers.has(\"Warning\")).to.be.false;",
+									"});",
+									"",
+									"pm.test(\"API version is V2\", function () {",
+									"    pm.expect(pm.response.headers.get(\"X-API-Version\")).to.eql(\"v2\");",
+									"});",
+									"",
+									"pm.test(\"V2 registration response is enhanced\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property(\"success\");",
+									"    pm.expect(jsonData.data).to.have.property(\"next_steps\");",
+									"    pm.expect(jsonData.data.next_steps).to.have.property(\"email_verification\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{test_username}}_v2\",\n    \"email\": \"{{test_username}}_v2@example.com\",\n    \"password\": \"{{test_password}\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User V2\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v2/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v2",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "V2 Login User (Enhanced Response)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"V2 login response includes user info\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property(\"access_token\");",
+									"    pm.expect(jsonData.data).to.have.property(\"token_type\", \"Bearer\");",
+									"    pm.expect(jsonData.data).to.have.property(\"expires_in\");",
+									"    pm.expect(jsonData.data).to.have.property(\"user\");",
+									"    ",
+									"    var user = jsonData.data.user;",
+									"    pm.expect(user).to.have.property(\"id\");",
+									"    pm.expect(user).to.have.property(\"username\");",
+									"    pm.expect(user).to.have.property(\"email\");",
+									"    pm.expect(user).to.have.property(\"roles\");",
+									"});",
+									"",
+									"// Save token and user ID",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"access_token\", jsonData.data.access_token);",
+									"    pm.collectionVariables.set(\"test_user_id\", jsonData.data.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{test_username}}_v2@example.com\",\n    \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v2/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v2",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "V2 Get Profile (Enhanced Fields)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"V2 profile contains enhanced fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var profile = jsonData.data;",
+									"    pm.expect(profile).to.have.property(\"user_id\");",
+									"    pm.expect(profile).to.have.property(\"first_name\");",
+									"    pm.expect(profile).to.have.property(\"last_name\");",
+									"    pm.expect(profile).to.have.property(\"email\");",
+									"    pm.expect(profile).to.have.property(\"bio\");",
+									"    pm.expect(profile).to.have.property(\"location\");",
+									"    pm.expect(profile).to.have.property(\"website\");",
+									"    pm.expect(profile).to.have.property(\"avatar_url\");",
+									"    pm.expect(profile).to.have.property(\"created_at\");",
+									"    pm.expect(profile).to.have.property(\"updated_at\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v2/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v2",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "V2 Get User (With Roles)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"V2 user response includes roles\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var user = jsonData.data;",
+									"    pm.expect(user).to.have.property(\"id\");",
+									"    pm.expect(user).to.have.property(\"username\");",
+									"    pm.expect(user).to.have.property(\"email\");",
+									"    pm.expect(user).to.have.property(\"email_verified\");",
+									"    pm.expect(user).to.have.property(\"status\");",
+									"    pm.expect(user).to.have.property(\"roles\");",
+									"    pm.expect(user.roles).to.be.an(\"array\");",
+									"    pm.expect(user).to.have.property(\"created_at\");",
+									"    pm.expect(user).to.have.property(\"updated_at\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v2/users/{{test_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v2",
+								"users",
+								"{{test_user_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "V3 API Tests (Latest)",
+			"item": [
+				{
+					"name": "V3 Register User (Complete)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"API version is V3\", function () {",
+									"    pm.expect(pm.response.headers.get(\"X-API-Version\")).to.eql(\"v3\");",
+									"});",
+									"",
+									"pm.test(\"V3 registration response is comprehensive\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property(\"success\");",
+									"    pm.expect(jsonData.data).to.have.property(\"message\");",
+									"    pm.expect(jsonData.data).to.have.property(\"verification\");",
+									"    pm.expect(jsonData.data).to.have.property(\"next_steps\");",
+									"    pm.expect(jsonData.data).to.have.property(\"welcome\");",
+									"    ",
+									"    var verification = jsonData.data.verification;",
+									"    pm.expect(verification).to.have.property(\"email_sent\");",
+									"    pm.expect(verification).to.have.property(\"expires_in\");",
+									"    pm.expect(verification).to.have.property(\"resend_available_in\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{test_username}}_v3\",\n    \"email\": \"{{test_username}}_v3@example.com\",\n    \"password\": \"{{test_password}}\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User V3\",\n    \"terms_accepted\": true,\n    \"marketing_consent\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v3/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v3",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "V3 Login User (Complete Response)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"V3 login response is comprehensive\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var data = jsonData.data;",
+									"    pm.expect(data).to.have.property(\"access_token\");",
+									"    pm.expect(data).to.have.property(\"token_type\", \"Bearer\");",
+									"    pm.expect(data).to.have.property(\"expires_in\");",
+									"    pm.expect(data).to.have.property(\"scope\");",
+									"    pm.expect(data).to.have.property(\"user\");",
+									"    pm.expect(data).to.have.property(\"security\");",
+									"    ",
+									"    var user = data.user;",
+									"    pm.expect(user).to.have.property(\"id\");",
+									"    pm.expect(user).to.have.property(\"username\");",
+									"    pm.expect(user).to.have.property(\"email\");",
+									"    pm.expect(user).to.have.property(\"email_verified\");",
+									"    pm.expect(user).to.have.property(\"roles\");",
+									"    pm.expect(user).to.have.property(\"permissions\");",
+									"    ",
+									"    var security = data.security;",
+									"    pm.expect(security).to.have.property(\"two_factor_enabled\");",
+									"    pm.expect(security).to.have.property(\"active_sessions\");",
+									"    pm.expect(security).to.have.property(\"login_attempts_today\");",
+									"});",
+									"",
+									"// Save token and user ID",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"access_token\", jsonData.data.access_token);",
+									"    pm.collectionVariables.set(\"test_user_id\", jsonData.data.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{test_username}}_v3@example.com\",\n    \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v3/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v3",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "V3 Get Profile (Complete)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"V3 profile is comprehensive\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var profile = jsonData.data;",
+									"    pm.expect(profile).to.have.property(\"user_id\");",
+									"    pm.expect(profile).to.have.property(\"first_name\");",
+									"    pm.expect(profile).to.have.property(\"last_name\");",
+									"    pm.expect(profile).to.have.property(\"email\");",
+									"    pm.expect(profile).to.have.property(\"bio\");",
+									"    pm.expect(profile).to.have.property(\"location\");",
+									"    pm.expect(profile).to.have.property(\"website\");",
+									"    pm.expect(profile).to.have.property(\"avatar_url\");",
+									"    pm.expect(profile).to.have.property(\"phone\");",
+									"    pm.expect(profile).to.have.property(\"date_of_birth\");",
+									"    pm.expect(profile).to.have.property(\"preferences\");",
+									"    pm.expect(profile).to.have.property(\"social_links\");",
+									"    pm.expect(profile).to.have.property(\"privacy_settings\");",
+									"    pm.expect(profile).to.have.property(\"created_at\");",
+									"    pm.expect(profile).to.have.property(\"updated_at\");",
+									"    ",
+									"    var privacy = profile.privacy_settings;",
+									"    pm.expect(privacy).to.have.property(\"profile_visibility\");",
+									"    pm.expect(privacy).to.have.property(\"email_visibility\");",
+									"    pm.expect(privacy).to.have.property(\"activity_visibility\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v3/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v3",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "V3 Get User (Complete with Metadata)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"V3 user response is complete\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var user = jsonData.data;",
+									"    pm.expect(user).to.have.property(\"id\");",
+									"    pm.expect(user).to.have.property(\"username\");",
+									"    pm.expect(user).to.have.property(\"email\");",
+									"    pm.expect(user).to.have.property(\"email_verified\");",
+									"    pm.expect(user).to.have.property(\"status\");",
+									"    pm.expect(user).to.have.property(\"roles\");",
+									"    pm.expect(user).to.have.property(\"permissions\");",
+									"    pm.expect(user).to.have.property(\"metadata\");",
+									"    pm.expect(user).to.have.property(\"created_at\");",
+									"    pm.expect(user).to.have.property(\"updated_at\");",
+									"    pm.expect(user).to.have.property(\"last_login_at\");",
+									"    ",
+									"    var metadata = user.metadata;",
+									"    pm.expect(metadata).to.have.property(\"active_sessions\");",
+									"    pm.expect(metadata).to.have.property(\"last_activity\");",
+									"    pm.expect(metadata).to.have.property(\"login_count\");",
+									"    pm.expect(metadata).to.have.property(\"profile_completeness\");",
+									"    ",
+									"    // Roles should be detailed objects in V3",
+									"    if (user.roles.length > 0) {",
+									"        var role = user.roles[0];",
+									"        pm.expect(role).to.have.property(\"name\");",
+									"        pm.expect(role).to.have.property(\"assigned_at\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v3/users/{{test_user_id}}?include_metadata=true&include_permissions=true",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v3",
+								"users",
+								"{{test_user_id}}"
+							],
+							"query": [
+								{
+									"key": "include_metadata",
+									"value": "true"
+								},
+								{
+									"key": "include_permissions",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Version Detection Tests",
+			"item": [
+				{
+					"name": "Version via Accept Header (V2)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Version detected from Accept header\", function () {",
+									"    pm.expect(pm.response.headers.get(\"X-API-Version\")).to.eql(\"v2\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/vnd.api+json;version=2"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Version via Custom Header (V3)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Version detected from custom header\", function () {",
+									"    pm.expect(pm.response.headers.get(\"X-API-Version\")).to.eql(\"v3\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Version",
+								"value": "v3"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"register"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Deprecation Testing",
+			"item": [
+				{
+					"name": "Test V1 Deprecation Headers",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"V1 includes deprecation headers\", function () {",
+									"    pm.response.to.have.header(\"Deprecation\");",
+									"    pm.response.to.have.header(\"Warning\");",
+									"    pm.response.to.have.header(\"Sunset\");",
+									"    pm.response.to.have.header(\"Link\");",
+									"});",
+									"",
+									"pm.test(\"Deprecation info in response metadata\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.meta).to.have.property(\"deprecation_info\");",
+									"    var deprecation = jsonData.meta.deprecation_info;",
+									"    pm.expect(deprecation).to.have.property(\"deprecated_since\");",
+									"    pm.expect(deprecation).to.have.property(\"sunset_date\");",
+									"    pm.expect(deprecation).to.have.property(\"replacement_version\");",
+									"    pm.expect(deprecation).to.have.property(\"message\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test V2 No Deprecation Headers",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"V2 has no deprecation headers\", function () {",
+									"    pm.expect(pm.response.headers.has(\"Deprecation\")).to.be.false;",
+									"    pm.expect(pm.response.headers.has(\"Warning\")).to.be.false;",
+									"    pm.expect(pm.response.headers.has(\"Sunset\")).to.be.false;",
+									"});",
+									"",
+									"pm.test(\"No deprecation info in V2 metadata\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.meta.deprecation_info).to.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v2"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

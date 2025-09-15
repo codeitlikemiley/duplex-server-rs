@@ -1,3 +1,7 @@
+mod rbac_middleware;
+
+pub use rbac_middleware::{require_permission, require_any_permission, require_role};
+
 use axum::{
     extract::Request,
     http::{header, StatusCode},

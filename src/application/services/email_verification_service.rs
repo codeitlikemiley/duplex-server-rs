@@ -1,8 +1,13 @@
+use std::sync::Arc;
 use chrono::{Duration, Utc};
 use rand::Rng;
 use uuid::Uuid;
 
-use crate::{PostgreSQL, errors::AppError};
+use crate::{
+    PostgreSQL,
+    errors::AppError,
+    infrastructure::email::{EmailService, EmailTemplates},
+};
 
 pub struct EmailVerificationToken {
     pub id: Uuid,
@@ -14,11 +19,20 @@ pub struct EmailVerificationToken {
 
 pub struct EmailVerificationService {
     db: PostgreSQL,
+    email_service: Arc<dyn EmailService>,
+    base_url: String,
 }
 
 impl EmailVerificationService {
-    pub fn new(db: PostgreSQL) -> Self {
-        Self { db }
+    pub fn new(db: PostgreSQL, email_service: Arc<dyn EmailService>) -> Self {
+        let base_url = std::env::var("BASE_URL")
+            .unwrap_or_else(|_| "http://localhost:80".to_string());
+
+        Self {
+            db,
+            email_service,
+            base_url,
+        }
     }
 
     /// Generate a secure random verification token
@@ -57,6 +71,47 @@ impl EmailVerificationService {
         })?;
 
         Ok(token)
+    }
+
+    /// Send verification email to user
+    pub async fn send_verification_email(
+        &self,
+        user_id: Uuid,
+        email: &str,
+        username: &str,
+    ) -> Result<(), AppError> {
+        // Create verification token
+        let token = self.create_verification_token(user_id).await?;
+
+        // Create verification URL
+        let verification_url = format!(
+            "{}/verify-email?user_id={}&token={}",
+            self.base_url, user_id, token
+        );
+
+        // Create email from template
+        let from_email = std::env::var("FROM_EMAIL")
+            .unwrap_or_else(|_| "noreply@quake.app".to_string());
+
+        let email_message = EmailTemplates::verification_email(
+            email,
+            &from_email,
+            username,
+            &verification_url,
+        );
+
+        // Send email
+        self.email_service.send_email(email_message).await
+            .map_err(|e| AppError::Internal {
+                message: format!("Failed to send verification email: {}", e),
+            })?;
+
+        tracing::info!(
+            "Verification email sent to {} for user {}",
+            email, user_id
+        );
+
+        Ok(())
     }
 
     /// Verify an email token and activate the user account

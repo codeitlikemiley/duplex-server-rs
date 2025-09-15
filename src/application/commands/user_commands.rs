@@ -20,7 +20,7 @@ pub struct RegisterUser {
     pub last_name: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Login {
     pub email: String,
     pub password: String,

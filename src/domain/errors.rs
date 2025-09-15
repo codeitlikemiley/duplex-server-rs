@@ -30,6 +30,17 @@ pub enum AppError {
         message: String,
     },
 
+    /// Unauthorized access errors
+    Unauthorized {
+        message: String,
+    },
+
+    /// Too many requests / rate limiting errors
+    TooManyRequests {
+        message: String,
+        retry_after: Option<u64>, // seconds
+    },
+
     /// Database operation errors
     Database {
         message: String,
@@ -49,6 +60,8 @@ impl AppError {
             AppError::NotFound { .. } => "NOT_FOUND",
             AppError::Authentication { .. } => "AUTHENTICATION_ERROR",
             AppError::Authorization { .. } => "AUTHORIZATION_ERROR",
+            AppError::Unauthorized { .. } => "UNAUTHORIZED_ERROR",
+            AppError::TooManyRequests { .. } => "TOO_MANY_REQUESTS",
             AppError::Database { .. } => "DATABASE_ERROR",
             AppError::Internal { .. } => "INTERNAL_ERROR",
         }
@@ -71,6 +84,15 @@ impl AppError {
             }
             AppError::Authorization { message } => {
                 format!("❌ Access denied: {}", message)
+            }
+            AppError::Unauthorized { message } => {
+                format!("❌ Unauthorized: {}", message)
+            }
+            AppError::TooManyRequests { message, retry_after } => {
+                let retry_part = retry_after.as_ref()
+                    .map(|seconds| format!(" (retry after {} seconds)", seconds))
+                    .unwrap_or_default();
+                format!("❌ Too many requests: {}{}", message, retry_part)
             }
             AppError::Database { .. } => {
                 "❌ Database error occurred".to_string()
@@ -98,6 +120,15 @@ impl AppError {
             }
             AppError::Authorization { message } => {
                 format!("Authorization failed: {}", message)
+            }
+            AppError::Unauthorized { message } => {
+                format!("Unauthorized access: {}", message)
+            }
+            AppError::TooManyRequests { message, retry_after } => {
+                let retry_part = retry_after.as_ref()
+                    .map(|seconds| format!(" (retry after {} seconds)", seconds))
+                    .unwrap_or_default();
+                format!("Rate limit exceeded: {}{}", message, retry_part)
             }
             AppError::Database { message } => {
                 format!("Database error: {}", message)

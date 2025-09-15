@@ -1,0 +1,501 @@
+{
+  "info": {
+    "name": "RBAC System Testing",
+    "description": "Test collection for Role-Based Access Control system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:80",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_user_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register Regular User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    console.log('User registered successfully');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"password123\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Admin User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    console.log('Admin user registered successfully');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"adminuser\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\",\n  \"first_name\": \"Admin\",\n  \"last_name\": \"User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login Regular User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('jwt_token', response.token);",
+                  "    console.log('Login successful, token saved');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Admin User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('admin_jwt_token', response.token);",
+                  "    console.log('Admin login successful, token saved');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. RBAC - User Operations",
+      "item": [
+        {
+          "name": "Get User Profile (Should Work)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "user", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update User Profile (Should Work)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Updated\",\n  \"last_name\": \"Name\",\n  \"bio\": \"Updated bio\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "user", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get User Sessions (Should Work)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Get Lockout Status (Should Work)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/lockout/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "user", "lockout", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. RBAC - Admin Operations (Should Fail for Regular User)",
+      "item": [
+        {
+          "name": "Get Rate Limit Stats (Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/rate-limits/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "rate-limits", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Lockout Statistics (Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/lockout/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "lockout", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Cleanup Sessions (Should Fail)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/sessions/cleanup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "sessions", "cleanup"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Manual Role Assignment (Database)",
+      "item": [
+        {
+          "name": "Example SQL - Grant Admin Role",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "# Execute this SQL in your database to grant admin role to a user:\n# \n# -- First, find the user ID:\n# SELECT id, username, email FROM users WHERE email = 'testuser@example.com';\n# \n# -- Then assign admin role (replace USER_ID with actual ID):\n# INSERT INTO user_roles (user_id, role_id, assigned_at, assigned_by)\n# SELECT 'USER_ID', id, NOW(), 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'\n# FROM roles WHERE name = 'admin';\n# \n# -- Verify the assignment:\n# SELECT u.username, r.name as role_name, ur.assigned_at\n# FROM user_roles ur\n# JOIN users u ON ur.user_id = u.id  \n# JOIN roles r ON ur.role_id = r.id\n# WHERE u.email = 'testuser@example.com';",
+              "host": ["# Execute this SQL in your database to grant admin role to a user:"],
+              "path": [
+                "# ",
+                "# -- First, find the user ID:",
+                "# SELECT id, username, email FROM users WHERE email = 'testuser@example.com';",
+                "# ",
+                "# -- Then assign admin role (replace USER_ID with actual ID):",
+                "# INSERT INTO user_roles (user_id, role_id, assigned_at, assigned_by)",
+                "# SELECT 'USER_ID', id, NOW(), 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'",
+                "# FROM roles WHERE name = 'admin';",
+                "# ",
+                "# -- Verify the assignment:",
+                "# SELECT u.username, r.name as role_name, ur.assigned_at",
+                "# FROM user_roles ur",
+                "# JOIN users u ON ur.user_id = u.id  ",
+                "# JOIN roles r ON ur.role_id = r.id",
+                "# WHERE u.email = 'testuser@example.com';"
+              ]
+            },
+            "description": "This is not a real request - it's documentation for manual SQL commands to assign roles"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Test Admin Operations (After Role Assignment)",
+      "item": [
+        {
+          "name": "Get Rate Limit Stats (Should Work After Admin Role)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/rate-limits/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "rate-limits", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Lockout Statistics (Should Work After Admin Role)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/lockout/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "lockout", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Lock User Account (Admin Function)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lockout_type\": \"Temporary\",\n  \"reason\": \"Testing admin lockout functionality\",\n  \"duration_hours\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/{{user_id}}/lock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "{{user_id}}", "lock"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. RBAC Database Queries",
+      "item": [
+        {
+          "name": "Database Query Examples",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "# Useful database queries for testing RBAC:\n# \n# -- Check all roles:\n# SELECT * FROM roles ORDER BY is_system DESC, name;\n# \n# -- Check all permissions:\n# SELECT * FROM permissions ORDER BY resource, action;\n# \n# -- Check user roles:\n# SELECT u.username, u.email, r.name as role, ur.assigned_at\n# FROM user_roles ur\n# JOIN users u ON ur.user_id = u.id\n# JOIN roles r ON ur.role_id = r.id\n# ORDER BY u.username, r.name;\n# \n# -- Check role permissions:\n# SELECT r.name as role, p.resource, p.action, p.description\n# FROM role_permissions rp\n# JOIN roles r ON rp.role_id = r.id\n# JOIN permissions p ON rp.permission_id = p.id\n# ORDER BY r.name, p.resource, p.action;\n# \n# -- Test permission function:\n# SELECT user_has_permission('USER_ID_HERE', 'admin', 'access');\n# \n# -- Get user permissions:\n# SELECT * FROM get_user_permissions('USER_ID_HERE');",
+              "host": ["# Useful database queries for testing RBAC:"],
+              "path": [
+                "# ",
+                "# -- Check all roles:",
+                "# SELECT * FROM roles ORDER BY is_system DESC, name;",
+                "# ",
+                "# -- Check all permissions:",
+                "# SELECT * FROM permissions ORDER BY resource, action;",
+                "# ",
+                "# -- Check user roles:",
+                "# SELECT u.username, u.email, r.name as role, ur.assigned_at",
+                "# FROM user_roles ur",
+                "# JOIN users u ON ur.user_id = u.id",
+                "# JOIN roles r ON ur.role_id = r.id",
+                "# ORDER BY u.username, r.name;",
+                "# ",
+                "# -- Check role permissions:",
+                "# SELECT r.name as role, p.resource, p.action, p.description",
+                "# FROM role_permissions rp",
+                "# JOIN roles r ON rp.role_id = r.id",
+                "# JOIN permissions p ON rp.permission_id = p.id",
+                "# ORDER BY r.name, p.resource, p.action;",
+                "# ",
+                "# -- Test permission function:",
+                "# SELECT user_has_permission('USER_ID_HERE', 'admin', 'access');",
+                "# ",
+                "# -- Get user permissions:",
+                "# SELECT * FROM get_user_permissions('USER_ID_HERE');"
+              ]
+            },
+            "description": "Database queries to inspect and test the RBAC system"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Logout & Session Management",
+      "item": [
+        {
+          "name": "Logout Current Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Logout All Devices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout-all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout-all"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

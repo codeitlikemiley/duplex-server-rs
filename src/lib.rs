@@ -20,3 +20,6 @@ pub use infrastructure::proto;
 pub use infrastructure::repositories::PostgreSQL;
 
 pub use infrastructure::grpc::services::services as grpc_services;
+
+#[cfg(test)]
+mod tests;

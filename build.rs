@@ -23,6 +23,9 @@ fn main() {
             } else if message.contains("Response") {
                 println!("cargo:warning={:?}", message);
                 attributes.push((message, "#[derive(serde::Serialize)]".to_string()));
+            } else if message == "User" || message == "UserProfile" || message == "Role" || message == "Permission" || message == "UserActivity" || message == "Session" || message == "LockoutEvent" || message == "Activity" {
+                // Add Serialize and Deserialize for shared data types
+                attributes.push((message.clone(), "#[derive(serde::Serialize, serde::Deserialize)]".to_string()));
             }
         }
     }

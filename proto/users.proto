@@ -1,24 +1,169 @@
 syntax = "proto3";
 package users;
 
-// we can define here all our commands and querries
-// as rpc
-// while request and response for the messages
+// Comprehensive User Management Service
 service UserService {
+    // Authentication & Registration
     rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+    rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
     rpc Login(LoginRequest) returns (LoginResponse);
+    rpc Logout(LogoutRequest) returns (LogoutResponse);
+    rpc LogoutAllDevices(LogoutAllDevicesRequest) returns (LogoutAllDevicesResponse);
+    rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
 
+    // User Information
     rpc GetUser(GetUserRequest) returns (GetUserResponse);
     rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+    rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse);
+
+    // Profile Management
+    rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+    rpc UpdateAccount(UpdateAccountRequest) returns (UpdateAccountResponse);
+    rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse);
+
+    // Password Management
+    rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+    rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
+    rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+
+    // Account Management
+    rpc DeactivateAccount(DeactivateAccountRequest) returns (DeactivateAccountResponse);
+    rpc ReactivateAccount(ReactivateAccountRequest) returns (ReactivateAccountResponse);
+    rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+    rpc GetAccountStatus(GetAccountStatusRequest) returns (GetAccountStatusResponse);
+
+    // User Search & Directory
+    rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+    rpc AdvancedSearch(AdvancedSearchRequest) returns (AdvancedSearchResponse);
+    rpc SuggestUsers(SuggestUsersRequest) returns (SuggestUsersResponse);
+    rpc GetPublicDirectory(GetPublicDirectoryRequest) returns (GetPublicDirectoryResponse);
+
+    // Activity & Logging
+    rpc GetUserActivities(GetUserActivitiesRequest) returns (GetUserActivitiesResponse);
+    rpc GetActivityStats(GetActivityStatsRequest) returns (GetActivityStatsResponse);
+
+    // Session Management
+    rpc GetActiveSessions(GetActiveSessionsRequest) returns (GetActiveSessionsResponse);
+    rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+
+    // Admin Operations
+    rpc LockUserAccount(LockUserAccountRequest) returns (LockUserAccountResponse);
+    rpc UnlockUserAccount(UnlockUserAccountRequest) returns (UnlockUserAccountResponse);
+    rpc GetLockoutStatus(GetLockoutStatusRequest) returns (GetLockoutStatusResponse);
+    rpc GetLockoutHistory(GetLockoutHistoryRequest) returns (GetLockoutHistoryResponse);
+
+    // RBAC Operations
+    rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
+    rpc RemoveRole(RemoveRoleRequest) returns (RemoveRoleResponse);
+    rpc GetUserRoles(GetUserRolesRequest) returns (GetUserRolesResponse);
+    rpc GetUserPermissions(GetUserPermissionsRequest) returns (GetUserPermissionsResponse);
+    rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
 }
 
+// Enums
+enum UserStatus {
+    USER_STATUS_UNSPECIFIED = 0;
+    USER_STATUS_ACTIVE = 1;
+    USER_STATUS_INACTIVE = 2;
+    USER_STATUS_SUSPENDED = 3;
+    USER_STATUS_PENDING_VERIFICATION = 4;
+}
+
+enum ActivityType {
+    ACTIVITY_TYPE_UNSPECIFIED = 0;
+    ACTIVITY_TYPE_LOGIN = 1;
+    ACTIVITY_TYPE_LOGOUT = 2;
+    ACTIVITY_TYPE_PROFILE_UPDATE = 3;
+    ACTIVITY_TYPE_PASSWORD_CHANGE = 4;
+    ACTIVITY_TYPE_ACCOUNT_DEACTIVATION = 5;
+    ACTIVITY_TYPE_ACCOUNT_REACTIVATION = 6;
+    ACTIVITY_TYPE_ACCOUNT_DELETION = 7;
+    ACTIVITY_TYPE_EMAIL_VERIFICATION = 8;
+    ACTIVITY_TYPE_PASSWORD_RESET = 9;
+}
+
+// Common Messages
+message User {
+    string id = 1;
+    string username = 2;
+    string email = 3;
+    bool email_verified = 4;
+    UserStatus status = 5;
+    string created_at = 6;
+    string updated_at = 7;
+    string last_login_at = 8;
+}
+
+message UserProfile {
+    string user_id = 1;
+    string first_name = 2;
+    string last_name = 3;
+    string bio = 4;
+    string location = 5;
+    string website = 6;
+    string avatar_url = 7;
+    string preferences_json = 8; // JSON string for flexibility
+    string created_at = 9;
+    string updated_at = 10;
+}
+
+message Role {
+    string id = 1;
+    string name = 2;
+    string description = 3;
+    string assigned_at = 4;
+    string expires_at = 5;
+}
+
+message Permission {
+    string resource = 1;
+    string action = 2;
+    string description = 3;
+}
+
+message Activity {
+    string id = 1;
+    string user_id = 2;
+    ActivityType activity_type = 3;
+    string ip_address = 4;
+    string user_agent = 5;
+    string details_json = 6; // JSON string for flexibility
+    string created_at = 7;
+}
+
+message Session {
+    string id = 1;
+    string user_id = 2;
+    string token_hash = 3;
+    string ip_address = 4;
+    string user_agent = 5;
+    string created_at = 6;
+    string expires_at = 7;
+    string last_activity = 8;
+    bool is_active = 9;
+}
+
+// Authentication & Registration Messages
 message CreateUserRequest {
-    string username =1;
+    string username = 1;
     string email = 2;
     string password = 3;
 }
 
 message CreateUserResponse {}
+
+message RegisterUserRequest {
+    string username = 1;
+    string email = 2;
+    string password = 3;
+    string first_name = 4;
+    string last_name = 5;
+}
+
+message RegisterUserResponse {
+    string message = 1;
+    bool verification_sent = 2;
+}
 
 message LoginRequest {
     string email = 1;
@@ -27,22 +172,344 @@ message LoginRequest {
 
 message LoginResponse {
     string token = 1;
+    User user = 2;
 }
 
+message LogoutRequest {}
+
+message LogoutResponse {
+    string message = 1;
+}
+
+message LogoutAllDevicesRequest {}
+
+message LogoutAllDevicesResponse {
+    int32 sessions_revoked = 1;
+    string message = 2;
+}
+
+message VerifyEmailRequest {
+    string user_id = 1;
+    string verification_token = 2;
+}
+
+message VerifyEmailResponse {
+    string message = 1;
+    bool success = 2;
+}
+
+// User Information Messages
 message GetUserRequest {
     string id = 1;
 }
 
 message GetUserResponse {
-    string id = 1;
-    string username = 2;
-    string email = 3;
+    User user = 1;
+    repeated Role roles = 2;
 }
 
 message GetProfileRequest {}
 
 message GetProfileResponse {
-    string user_id = 1;
+    UserProfile profile = 1;
+}
+
+message GetCurrentUserRequest {}
+
+message GetCurrentUserResponse {
+    User user = 1;
+    UserProfile profile = 2;
+    repeated Role roles = 3;
+    repeated Permission permissions = 4;
+}
+
+// Profile Management Messages
+message UpdateProfileRequest {
+    string first_name = 1;
+    string last_name = 2;
+    string bio = 3;
+    string location = 4;
+    string website = 5;
+    string avatar_url = 6;
+    string preferences_json = 7;
+}
+
+message UpdateProfileResponse {
+    UserProfile profile = 1;
+}
+
+message UpdateAccountRequest {
+    string username = 1;
     string email = 2;
-    string message = 3;
+}
+
+message UpdateAccountResponse {
+    User user = 1;
+}
+
+message DeleteProfileRequest {}
+
+message DeleteProfileResponse {
+    string message = 1;
+}
+
+// Password Management Messages
+message ChangePasswordRequest {
+    string old_password = 1;
+    string new_password = 2;
+}
+
+message ChangePasswordResponse {
+    string message = 1;
+}
+
+message RequestPasswordResetRequest {
+    string email = 1;
+}
+
+message RequestPasswordResetResponse {
+    string message = 1;
+    bool email_sent = 2;
+}
+
+message ResetPasswordRequest {
+    string reset_token = 1;
+    string new_password = 2;
+}
+
+message ResetPasswordResponse {
+    string message = 1;
+}
+
+// Account Management Messages
+message DeactivateAccountRequest {
+    string reason = 1;
+}
+
+message DeactivateAccountResponse {
+    string message = 1;
+}
+
+message ReactivateAccountRequest {
+    string user_id = 1;
+    string reactivation_token = 2;
+}
+
+message ReactivateAccountResponse {
+    string message = 1;
+}
+
+message DeleteAccountRequest {
+    string password = 1;
+    string confirmation = 2; // Must be "DELETE"
+}
+
+message DeleteAccountResponse {
+    string message = 1;
+}
+
+message GetAccountStatusRequest {}
+
+message GetAccountStatusResponse {
+    UserStatus status = 1;
+    bool email_verified = 2;
+    bool account_locked = 3;
+    int32 active_sessions = 4;
+    string last_login = 5;
+}
+
+// Search Messages
+message SearchUsersRequest {
+    string query = 1;
+    int32 limit = 2;
+    int32 offset = 3;
+}
+
+message SearchUsersResponse {
+    repeated User users = 1;
+    int32 total = 2;
+    bool has_more = 3;
+}
+
+message AdvancedSearchRequest {
+    string search = 1;
+    UserStatus status = 2;
+    bool email_verified = 3;
+    string created_after = 4; // ISO 8601 date string
+    string created_before = 5; // ISO 8601 date string
+    string location = 6;
+    repeated string roles = 7;
+    int32 limit = 8;
+    int32 offset = 9;
+    string sort_by = 10;
+    bool sort_desc = 11;
+}
+
+message AdvancedSearchResponse {
+    repeated User users = 1;
+    int32 total = 2;
+    bool has_more = 3;
+}
+
+message SuggestUsersRequest {
+    string prefix = 1;
+    int32 limit = 2;
+}
+
+message SuggestUsersResponse {
+    repeated string suggestions = 1;
+}
+
+message GetPublicDirectoryRequest {
+    int32 limit = 1;
+    int32 offset = 2;
+    string sort_by = 3;
+}
+
+message GetPublicDirectoryResponse {
+    repeated User users = 1;
+    int32 total = 2;
+    bool has_more = 3;
+}
+
+// Activity Messages
+message GetUserActivitiesRequest {
+    string user_id = 1; // Optional, defaults to current user
+    int32 limit = 2;
+    int32 offset = 3;
+    ActivityType activity_type = 4;
+    string from_date = 5;
+    string to_date = 6;
+}
+
+message GetUserActivitiesResponse {
+    repeated Activity activities = 1;
+    int32 total = 2;
+    bool has_more = 3;
+}
+
+message GetActivityStatsRequest {
+    string user_id = 1; // Optional, defaults to current user
+}
+
+message GetActivityStatsResponse {
+    int64 total_activities = 1;
+    int64 login_count = 2;
+    int64 logout_count = 3;
+    int64 profile_updates = 4;
+    int64 password_changes = 5;
+    int64 activities_last_7_days = 6;
+    int64 activities_last_30_days = 7;
+    string last_activity = 8;
+}
+
+// Session Management Messages
+message GetActiveSessionsRequest {}
+
+message GetActiveSessionsResponse {
+    repeated Session sessions = 1;
+    int32 total = 2;
+}
+
+message RevokeSessionRequest {
+    string session_id = 1;
+}
+
+message RevokeSessionResponse {
+    string message = 1;
+}
+
+// Admin Operations Messages
+message LockUserAccountRequest {
+    string user_id = 1;
+    string reason = 2;
+    int32 duration_minutes = 3; // 0 for permanent
+}
+
+message LockUserAccountResponse {
+    string message = 1;
+}
+
+message UnlockUserAccountRequest {
+    string user_id = 1;
+}
+
+message UnlockUserAccountResponse {
+    string message = 1;
+}
+
+message GetLockoutStatusRequest {
+    string user_id = 1; // Optional, defaults to current user
+}
+
+message GetLockoutStatusResponse {
+    bool is_locked = 1;
+    int32 failed_attempts = 2;
+    string locked_until = 3;
+    string reason = 4;
+}
+
+message GetLockoutHistoryRequest {
+    string user_id = 1;
+    int32 limit = 2;
+}
+
+message GetLockoutHistoryResponse {
+    message LockoutEvent {
+        string id = 1;
+        string user_id = 2;
+        int32 failed_attempts = 3;
+        string locked_at = 4;
+        string locked_until = 5;
+        string reason = 6;
+        string unlocked_at = 7;
+    }
+    repeated LockoutEvent events = 1;
+}
+
+// RBAC Messages
+message AssignRoleRequest {
+    string user_id = 1;
+    string role_name = 2;
+    string expires_at = 3; // Optional
+}
+
+message AssignRoleResponse {
+    string message = 1;
+}
+
+message RemoveRoleRequest {
+    string user_id = 1;
+    string role_name = 2;
+}
+
+message RemoveRoleResponse {
+    string message = 1;
+}
+
+message GetUserRolesRequest {
+    string user_id = 1;
+}
+
+message GetUserRolesResponse {
+    repeated Role roles = 1;
+}
+
+message GetUserPermissionsRequest {
+    string user_id = 1;
+}
+
+message GetUserPermissionsResponse {
+    repeated Permission permissions = 1;
+}
+
+message CheckPermissionRequest {
+    string user_id = 1;
+    string resource = 2;
+    string action = 3;
+}
+
+message CheckPermissionResponse {
+    bool has_permission = 1;
+    string reason = 2;
 }

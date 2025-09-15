@@ -1,2 +1,26 @@
 mod user_controller;
+mod profile_controller;
+mod account_controller;
+mod search_controller;
+mod activity_controller;
+mod rate_limit_controller;
+mod auth_controller;
+mod lockout_controller;
+mod logout_controller;
+mod pagination_controller;
+mod bulk_operations_controller;
+mod documentation_controller;
+pub mod versioned;
+
 pub use user_controller::*;
+pub use profile_controller::*;
+pub use account_controller::*;
+pub use search_controller::*;
+pub use activity_controller::*;
+pub use rate_limit_controller::*;
+pub use auth_controller::*;
+pub use lockout_controller::*;
+pub use logout_controller::*;
+pub use pagination_controller::*;
+pub use bulk_operations_controller::*;
+pub use documentation_controller::*;

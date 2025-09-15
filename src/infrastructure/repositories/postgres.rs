@@ -1,4 +1,4 @@
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 use crate::models::{User, UserProfile};
@@ -13,8 +13,12 @@ impl PostgreSQL {
         Self { db: pool }
     }
 
+    pub fn pool(&self) -> Pool<Postgres> {
+        self.db.clone()
+    }
+
     pub async fn save_user(&self, user: User) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO users (id, username, email, password_hash, email_verified, status, created_at, updated_at, last_login_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -26,17 +30,17 @@ impl PostgreSQL {
                 status = EXCLUDED.status,
                 updated_at = EXCLUDED.updated_at,
                 last_login_at = EXCLUDED.last_login_at
-            "#,
-            user.id,
-            user.username,
-            user.email,
-            user.password_hash,
-            user.email_verified,
-            user.status as i32,
-            user.created_at,
-            user.updated_at,
-            user.last_login_at
+            "#
         )
+        .bind(user.id)
+        .bind(user.username)
+        .bind(user.email)
+        .bind(user.password_hash)
+        .bind(user.email_verified)
+        .bind(user.status)
+        .bind(user.created_at)
+        .bind(user.updated_at)
+        .bind(user.last_login_at)
         .execute(&self.db)
         .await?;
         Ok(())

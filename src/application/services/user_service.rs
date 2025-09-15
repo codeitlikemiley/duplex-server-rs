@@ -6,7 +6,7 @@ use crate::{
     PostgreSQL,
     commands::{CommandMessage, CreateUser, Login, RegisterUser, VerifyEmail, send_command},
     errors::AppError,
-    infrastructure::auth::JwtService,
+    infrastructure::{auth::JwtService, email::EmailServiceFactory},
     models::{User, UserProfile, UserStatus},
 };
 
@@ -126,16 +126,26 @@ impl UserService {
         // Save profile to database
         self.profile_repo.save_profile(profile).await?;
 
-        // Create and send email verification token
-        let email_service = super::EmailVerificationService::new(self.repo.clone());
-        let verification_token = email_service.create_verification_token(user.id).await?;
+        // Assign default "user" role to the new user
+        let rbac_service = super::RbacService::new(self.repo.db.clone());
+        rbac_service.assign_role(
+            user.id,
+            "user",  // Default role for new users
+            user.id, // Self-assigned during registration
+            None,    // No expiration for default role
+        ).await?;
 
-        // TODO: Send actual email with verification_token
-        tracing::info!(
-            "Verification token created for user {}: {}",
-            user.email,
-            verification_token
+        // Send verification email
+        let email_service_impl = EmailServiceFactory::from_env()
+            .unwrap_or_else(|_| EmailServiceFactory::console());
+        let email_service = super::EmailVerificationService::new(
+            self.repo.clone(),
+            email_service_impl,
         );
+
+        email_service
+            .send_verification_email(user.id, &user.email, &user.username)
+            .await?;
 
         tracing::info!(
             "User registered successfully: {} ({})",
@@ -147,7 +157,12 @@ impl UserService {
 
     /// Handle email verification
     pub async fn handle_verify_email(&self, cmd: VerifyEmail) -> Result<(), AppError> {
-        let email_service = super::EmailVerificationService::new(self.repo.clone());
+        let email_service_impl = EmailServiceFactory::from_env()
+            .unwrap_or_else(|_| EmailServiceFactory::console());
+        let email_service = super::EmailVerificationService::new(
+            self.repo.clone(),
+            email_service_impl,
+        );
         email_service.verify_email_token(cmd.user_id, &cmd.verification_token).await?;
 
         tracing::info!("Email verified successfully for user: {}", cmd.user_id);

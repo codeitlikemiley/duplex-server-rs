@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod db;
+pub mod email;
 pub mod errors;
 pub mod grpc;
 pub mod http;
