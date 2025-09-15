@@ -21,6 +21,8 @@ impl ErrorTranslator {
             AppError::Authorization { .. } => Status::permission_denied(error.user_message()),
             AppError::Database { .. } => Status::internal(error.user_message()),
             AppError::Internal { .. } => Status::internal(error.user_message()),
+            AppError::Unauthorized { .. } => Status::unauthenticated(error.user_message()),
+            AppError::TooManyRequests { .. } => Status::resource_exhausted(error.user_message()),
         }
     }
 
@@ -32,6 +34,8 @@ impl ErrorTranslator {
             AppError::Authentication { .. } => axum::http::StatusCode::UNAUTHORIZED,
             AppError::Authorization { .. } => axum::http::StatusCode::FORBIDDEN,
             AppError::Database { .. } | AppError::Internal { .. } => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Unauthorized { .. } => axum::http::StatusCode::UNAUTHORIZED,
+            AppError::TooManyRequests { .. } => axum::http::StatusCode::TOO_MANY_REQUESTS,
         };
 
         let body = serde_json::json!({
