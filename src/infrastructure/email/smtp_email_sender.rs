@@ -66,24 +66,23 @@ impl SmtpEmailSender {
 #[async_trait]
 impl EmailService for SmtpEmailSender {
     async fn send_email(&self, message: EmailMessage) -> Result<(), EmailError> {
-        // TODO: Implement actual SMTP sending
-        // This is a placeholder that simulates sending
+        use lettre::{
+            AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
+            transport::smtp::authentication::Credentials,
+        };
 
         info!(
             "📧 [SMTP] Sending email to {} with subject: {}",
             message.to, message.subject
         );
 
-        // Example using lettre (add to Cargo.toml: lettre = "0.11")
-        /*
-        use lettre::{
-            AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
-            transport::smtp::authentication::Credentials,
-        };
-
+        // Build the email message
         let email = Message::builder()
-            .from(format!("{} <{}>", self.config.from_name, self.config.from_email).parse().unwrap())
-            .to(message.to.parse().unwrap())
+            .from(format!("{} <{}>", self.config.from_name, self.config.from_email)
+                .parse()
+                .map_err(|e| EmailError::ConfigurationError(format!("Invalid from address: {}", e)))?)
+            .to(message.to.parse()
+                .map_err(|e| EmailError::InvalidAddress(format!("Invalid to address: {}", e)))?)
             .subject(message.subject)
             .multipart(
                 lettre::message::MultiPart::alternative()
@@ -94,32 +93,41 @@ impl EmailService for SmtpEmailSender {
                         lettre::message::SinglePart::html(message.body_html)
                     )
             )
-            .map_err(|e| EmailError::SendFailed(e.to_string()))?;
+            .map_err(|e| EmailError::SendFailed(format!("Failed to build email: {}", e)))?;
 
+        // Set up SMTP credentials
         let creds = Credentials::new(
             self.config.username.clone(),
             self.config.password.clone(),
         );
 
+        // Create SMTP transport
         let mailer = if self.config.use_tls {
+            // Use TLS (port 587 typically)
             AsyncSmtpTransport::<Tokio1Executor>::relay(&self.config.host)
-                .map_err(|e| EmailError::ConfigurationError(e.to_string()))?
+                .map_err(|e| EmailError::ConfigurationError(format!("Failed to create SMTP relay: {}", e)))?
                 .credentials(creds)
+                .port(self.config.port)
                 .build()
         } else {
+            // Use plain SMTP (port 25 typically) - only for testing/local development
             AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&self.config.host)
                 .port(self.config.port)
                 .credentials(creds)
                 .build()
         };
 
-        mailer.send(email).await
-            .map_err(|e| EmailError::SendFailed(e.to_string()))?;
-        */
-
-        // Simulate successful send for now
-        info!("📧 [SMTP] Email sent successfully to {}", message.to);
-        Ok(())
+        // Send the email
+        match mailer.send(email).await {
+            Ok(_) => {
+                info!("📧 [SMTP] Email sent successfully to {}", message.to);
+                Ok(())
+            }
+            Err(e) => {
+                error!("📧 [SMTP] Failed to send email to {}: {}", message.to, e);
+                Err(EmailError::SendFailed(format!("SMTP send failed: {}", e)))
+            }
+        }
     }
 
     async fn verify_address(&self, email: &str) -> Result<bool, EmailError> {
@@ -158,28 +166,57 @@ impl SendGridEmailSender {
 #[async_trait]
 impl EmailService for SendGridEmailSender {
     async fn send_email(&self, message: EmailMessage) -> Result<(), EmailError> {
-        // TODO: Implement SendGrid API call
-        // Example using sendgrid crate (add to Cargo.toml: sendgrid = "0.18")
-        /*
-        use sendgrid::v3::*;
+        use sendgrid::v3::{Sender, Email, Content, Personalization, Message as SGMessage};
 
-        let sg = SGClient::new(self.api_key.clone());
+        info!(
+            "📧 [SendGrid] Sending email to {} with subject: {}",
+            message.to, message.subject
+        );
 
-        let mut mail = Mail::new();
-        mail.add_to(Destination {
-            address: message.to.as_str(),
-            name: "",
-        });
-        mail.add_from(Email::new(self.from_email.as_str()).set_name(self.from_name.as_str()));
-        mail.add_subject(message.subject.as_str());
-        mail.add_text(message.body_text.as_str());
-        mail.add_html(message.body_html.as_str());
+        // Create SendGrid sender (with optional HTTP client)
+        let sender = Sender::new(self.api_key.clone(), None);
 
-        sg.send(mail).await
-            .map_err(|e| EmailError::SendFailed(e.to_string()))?;
-        */
+        // Build the email
+        let mut sg_message = SGMessage::new(
+            Email::new(&self.from_email).set_name(&self.from_name),
+        );
 
-        info!("📧 [SendGrid] Email sent to {}", message.to);
-        Ok(())
+        // Add personalization (recipient)
+        let personalization = Personalization::new(Email::new(&message.to));
+        sg_message = sg_message.add_personalization(personalization);
+
+        // Add subject
+        sg_message = sg_message.set_subject(&message.subject);
+
+        // Add content (both text and HTML)
+        sg_message = sg_message.add_content(Content::new()
+            .set_content_type("text/plain")
+            .set_value(&message.body_text));
+
+        sg_message = sg_message.add_content(Content::new()
+            .set_content_type("text/html")
+            .set_value(&message.body_html));
+
+        // Send the email
+        match sender.send(&sg_message).await {
+            Ok(_) => {
+                info!("📧 [SendGrid] Email sent successfully to {}", message.to);
+                Ok(())
+            }
+            Err(e) => {
+                error!("📧 [SendGrid] Failed to send email to {}: {}", message.to, e);
+                Err(EmailError::SendFailed(format!("SendGrid API error: {}", e)))
+            }
+        }
+    }
+
+    async fn verify_address(&self, email: &str) -> Result<bool, EmailError> {
+        // Basic validation for now
+        let is_valid = email.contains('@')
+            && email.contains('.')
+            && email.len() > 5
+            && !email.contains(' ');
+
+        Ok(is_valid)
     }
 }

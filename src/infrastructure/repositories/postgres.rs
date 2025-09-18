@@ -77,8 +77,8 @@ impl PostgreSQL {
     pub async fn save_profile(&self, profile: UserProfile) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-            INSERT INTO user_profiles (user_id, first_name, last_name, bio, avatar_url, website, location, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO user_profiles (user_id, first_name, last_name, bio, avatar_url, website, location, preferences, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             ON CONFLICT (user_id) DO UPDATE SET
                 first_name = EXCLUDED.first_name,
                 last_name = EXCLUDED.last_name,
@@ -86,6 +86,7 @@ impl PostgreSQL {
                 avatar_url = EXCLUDED.avatar_url,
                 website = EXCLUDED.website,
                 location = EXCLUDED.location,
+                preferences = EXCLUDED.preferences,
                 updated_at = EXCLUDED.updated_at
             "#,
             profile.user_id,
@@ -95,11 +96,25 @@ impl PostgreSQL {
             profile.avatar_url,
             profile.website,
             profile.location,
+            profile.preferences,
             profile.created_at,
             profile.updated_at
         )
         .execute(&self.db)
         .await?;
         Ok(())
+    }
+
+    pub async fn find_profile_by_user_id(&self, user_id: Uuid) -> Result<Option<UserProfile>, sqlx::Error> {
+        sqlx::query_as!(
+            UserProfile,
+            r#"
+            SELECT user_id, first_name, last_name, bio, avatar_url, website, location, preferences, created_at, updated_at
+            FROM user_profiles WHERE user_id = $1
+            "#,
+            user_id
+        )
+        .fetch_optional(&self.db)
+        .await
     }
 }

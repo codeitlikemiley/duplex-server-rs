@@ -37,6 +37,14 @@ sha2 = "0.10.9"
 regex = "1.11.2"
 ipnetwork = { version = "0.21.1", features = ["serde"] }
 base64 = "0.22.1"
+lettre = { version = "0.11.18", features = ["tokio1", "tokio1-native-tls", "builder", "smtp-transport"] }
+sendgrid = "0.24.1"
+
+[dev-dependencies]
+futures = "0.3"
+tokio-test = "0.4"
+tempfile = "3.13"
+tokio-stream = "0.1"
 
 [build-dependencies]
 regex = "1.11.2"

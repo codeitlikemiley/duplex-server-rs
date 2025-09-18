@@ -32,7 +32,7 @@ pub struct EmailServiceFactory;
 impl EmailServiceFactory {
     /// Create email service based on environment configuration
     pub fn from_env() -> Result<Arc<dyn EmailService>, EmailError> {
-        let service_type = std::env::var("EMAIL_SERVICE_TYPE")
+        let service_type = std::env::var("EMAIL_SERVICE")
             .unwrap_or_else(|_| "console".to_string())
             .into();
 

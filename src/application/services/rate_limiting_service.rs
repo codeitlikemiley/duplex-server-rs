@@ -377,3 +377,424 @@ pub struct UserStats {
     pub successful_attempts_24h: i32,
     pub last_attempt_at: Option<DateTime<Utc>>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_auth_attempt_creation() {
+        let attempt = AuthAttempt {
+            id: Uuid::now_v7(),
+            ip_address: Some("192.168.1.1".to_string()),
+            user_id: Some(Uuid::now_v7()),
+            username: Some("testuser".to_string()),
+            success: true,
+            user_agent: Some("Mozilla/5.0".to_string()),
+            created_at: Utc::now(),
+        };
+
+        assert!(attempt.ip_address.is_some());
+        assert!(attempt.user_id.is_some());
+        assert!(attempt.username.is_some());
+        assert!(attempt.success);
+        assert!(attempt.user_agent.is_some());
+    }
+
+    #[test]
+    fn test_auth_attempt_failed() {
+        let attempt = AuthAttempt {
+            id: Uuid::now_v7(),
+            ip_address: Some("10.0.0.1".to_string()),
+            user_id: None,
+            username: Some("attacker".to_string()),
+            success: false,
+            user_agent: None,
+            created_at: Utc::now(),
+        };
+
+        assert!(!attempt.success);
+        assert!(attempt.user_id.is_none());
+        assert!(attempt.user_agent.is_none());
+    }
+
+    #[test]
+    fn test_auth_attempt_clone() {
+        let original = AuthAttempt {
+            id: Uuid::now_v7(),
+            ip_address: Some("127.0.0.1".to_string()),
+            user_id: Some(Uuid::now_v7()),
+            username: Some("user".to_string()),
+            success: true,
+            user_agent: Some("curl/7.68.0".to_string()),
+            created_at: Utc::now(),
+        };
+
+        let cloned = original.clone();
+        assert_eq!(cloned.id, original.id);
+        assert_eq!(cloned.ip_address, original.ip_address);
+        assert_eq!(cloned.user_id, original.user_id);
+        assert_eq!(cloned.username, original.username);
+        assert_eq!(cloned.success, original.success);
+        assert_eq!(cloned.user_agent, original.user_agent);
+        assert_eq!(cloned.created_at, original.created_at);
+    }
+
+    #[test]
+    fn test_rate_limit_result_not_limited() {
+        let result = RateLimitResult {
+            is_limited: false,
+            remaining_attempts: 8,
+            reset_time: None,
+            window_minutes: 15,
+        };
+
+        assert!(!result.is_limited);
+        assert_eq!(result.remaining_attempts, 8);
+        assert!(result.reset_time.is_none());
+        assert_eq!(result.window_minutes, 15);
+    }
+
+    #[test]
+    fn test_rate_limit_result_limited() {
+        let reset_time = Utc::now() + Duration::minutes(10);
+        let result = RateLimitResult {
+            is_limited: true,
+            remaining_attempts: 0,
+            reset_time: Some(reset_time),
+            window_minutes: 15,
+        };
+
+        assert!(result.is_limited);
+        assert_eq!(result.remaining_attempts, 0);
+        assert_eq!(result.reset_time, Some(reset_time));
+        assert_eq!(result.window_minutes, 15);
+    }
+
+    #[test]
+    fn test_rate_limit_result_serialization() {
+        let result = RateLimitResult {
+            is_limited: true,
+            remaining_attempts: 3,
+            reset_time: Some(Utc::now()),
+            window_minutes: 30,
+        };
+
+        let json = serde_json::to_string(&result).expect("Failed to serialize RateLimitResult");
+        assert!(json.contains("is_limited"));
+        assert!(json.contains("remaining_attempts"));
+        assert!(json.contains("reset_time"));
+        assert!(json.contains("window_minutes"));
+    }
+
+    #[test]
+    fn test_rate_limit_stats_creation() {
+        let stats = RateLimitStats {
+            total_attempts: 100,
+            successful_attempts: 85,
+            failed_attempts: 15,
+            attempts_last_hour: 25,
+            attempts_last_day: 100,
+            unique_ips: 45,
+            unique_users: 30,
+        };
+
+        assert_eq!(stats.total_attempts, 100);
+        assert_eq!(stats.successful_attempts, 85);
+        assert_eq!(stats.failed_attempts, 15);
+        assert_eq!(stats.attempts_last_hour, 25);
+        assert_eq!(stats.attempts_last_day, 100);
+        assert_eq!(stats.unique_ips, 45);
+        assert_eq!(stats.unique_users, 30);
+    }
+
+    #[test]
+    fn test_rate_limit_stats_serialization() {
+        let stats = RateLimitStats {
+            total_attempts: 1000,
+            successful_attempts: 950,
+            failed_attempts: 50,
+            attempts_last_hour: 120,
+            attempts_last_day: 1000,
+            unique_ips: 200,
+            unique_users: 150,
+        };
+
+        let json = serde_json::to_string(&stats).expect("Failed to serialize RateLimitStats");
+        assert!(json.contains("total_attempts"));
+        assert!(json.contains("950"));
+        assert!(json.contains("50"));
+    }
+
+    #[test]
+    fn test_failing_ip_info_creation() {
+        let ip_info = FailingIpInfo {
+            ip_address: Some("192.168.1.100".to_string()),
+            attempt_count: Some(25),
+            failed_count: Some(20),
+            last_attempt_at: Some(Utc::now()),
+        };
+
+        assert_eq!(ip_info.ip_address, Some("192.168.1.100".to_string()));
+        assert_eq!(ip_info.attempt_count, Some(25));
+        assert_eq!(ip_info.failed_count, Some(20));
+        assert!(ip_info.last_attempt_at.is_some());
+    }
+
+    #[test]
+    fn test_failing_ip_info_empty() {
+        let ip_info = FailingIpInfo {
+            ip_address: None,
+            attempt_count: None,
+            failed_count: None,
+            last_attempt_at: None,
+        };
+
+        assert!(ip_info.ip_address.is_none());
+        assert!(ip_info.attempt_count.is_none());
+        assert!(ip_info.failed_count.is_none());
+        assert!(ip_info.last_attempt_at.is_none());
+    }
+
+    #[test]
+    fn test_failing_ip_info_serialization() {
+        let ip_info = FailingIpInfo {
+            ip_address: Some("10.0.0.5".to_string()),
+            attempt_count: Some(50),
+            failed_count: Some(35),
+            last_attempt_at: Some(Utc::now()),
+        };
+
+        let json = serde_json::to_string(&ip_info).expect("Failed to serialize FailingIpInfo");
+        assert!(json.contains("ip_address"));
+        assert!(json.contains("10.0.0.5"));
+        assert!(json.contains("attempt_count"));
+        assert!(json.contains("50"));
+    }
+
+    #[test]
+    fn test_rate_limit_query_deserialization() {
+        let json = r#"{"limit": 10}"#;
+        let query: RateLimitQuery = serde_json::from_str(json).expect("Failed to deserialize RateLimitQuery");
+        assert_eq!(query.limit, Some(10));
+
+        let json_no_limit = r#"{}"#;
+        let query_no_limit: RateLimitQuery = serde_json::from_str(json_no_limit).expect("Failed to deserialize RateLimitQuery");
+        assert!(query_no_limit.limit.is_none());
+    }
+
+    #[test]
+    fn test_user_stats_creation() {
+        let now = Utc::now();
+        let stats = UserStats {
+            failed_attempts_24h: 3,
+            successful_attempts_24h: 15,
+            last_attempt_at: Some(now),
+        };
+
+        assert_eq!(stats.failed_attempts_24h, 3);
+        assert_eq!(stats.successful_attempts_24h, 15);
+        assert_eq!(stats.last_attempt_at, Some(now));
+    }
+
+    #[test]
+    fn test_user_stats_no_attempts() {
+        let stats = UserStats {
+            failed_attempts_24h: 0,
+            successful_attempts_24h: 0,
+            last_attempt_at: None,
+        };
+
+        assert_eq!(stats.failed_attempts_24h, 0);
+        assert_eq!(stats.successful_attempts_24h, 0);
+        assert!(stats.last_attempt_at.is_none());
+    }
+
+    #[test]
+    fn test_user_stats_serialization() {
+        let stats = UserStats {
+            failed_attempts_24h: 5,
+            successful_attempts_24h: 20,
+            last_attempt_at: Some(Utc::now()),
+        };
+
+        let json = serde_json::to_string(&stats).expect("Failed to serialize UserStats");
+        assert!(json.contains("failed_attempts_24h"));
+        assert!(json.contains("successful_attempts_24h"));
+        assert!(json.contains("last_attempt_at"));
+    }
+
+    #[test]
+    fn test_auth_attempt_with_ipv6() {
+        let attempt = AuthAttempt {
+            id: Uuid::now_v7(),
+            ip_address: Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334".to_string()),
+            user_id: Some(Uuid::now_v7()),
+            username: Some("ipv6user".to_string()),
+            success: true,
+            user_agent: Some("Safari/14.0".to_string()),
+            created_at: Utc::now(),
+        };
+
+        assert!(attempt.ip_address.unwrap().contains("2001:0db8"));
+        assert_eq!(attempt.username.unwrap(), "ipv6user");
+    }
+
+    #[test]
+    fn test_auth_attempt_with_long_user_agent() {
+        let long_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59".to_string();
+
+        let attempt = AuthAttempt {
+            id: Uuid::now_v7(),
+            ip_address: Some("203.0.113.1".to_string()),
+            user_id: Some(Uuid::now_v7()),
+            username: Some("webuser".to_string()),
+            success: true,
+            user_agent: Some(long_user_agent.clone()),
+            created_at: Utc::now(),
+        };
+
+        assert_eq!(attempt.user_agent.unwrap(), long_user_agent);
+    }
+
+    #[test]
+    fn test_auth_attempt_with_unicode_username() {
+        let attempt = AuthAttempt {
+            id: Uuid::now_v7(),
+            ip_address: Some("192.168.1.50".to_string()),
+            user_id: Some(Uuid::now_v7()),
+            username: Some("用户名测试".to_string()),
+            success: false,
+            user_agent: Some("Mobile App v2.1".to_string()),
+            created_at: Utc::now(),
+        };
+
+        assert_eq!(attempt.username.unwrap(), "用户名测试");
+        assert!(!attempt.success);
+    }
+
+    #[test]
+    fn test_rate_limit_result_with_zero_window() {
+        let result = RateLimitResult {
+            is_limited: false,
+            remaining_attempts: 10,
+            reset_time: None,
+            window_minutes: 0,
+        };
+
+        assert_eq!(result.window_minutes, 0);
+        assert!(!result.is_limited);
+    }
+
+    #[test]
+    fn test_rate_limit_result_with_large_window() {
+        let result = RateLimitResult {
+            is_limited: true,
+            remaining_attempts: 0,
+            reset_time: Some(Utc::now() + Duration::hours(24)),
+            window_minutes: 1440, // 24 hours
+        };
+
+        assert_eq!(result.window_minutes, 1440);
+        assert!(result.is_limited);
+    }
+
+    #[test]
+    fn test_rate_limit_stats_with_zero_values() {
+        let stats = RateLimitStats {
+            total_attempts: 0,
+            successful_attempts: 0,
+            failed_attempts: 0,
+            attempts_last_hour: 0,
+            attempts_last_day: 0,
+            unique_ips: 0,
+            unique_users: 0,
+        };
+
+        assert_eq!(stats.total_attempts, 0);
+        assert_eq!(stats.successful_attempts, 0);
+        assert_eq!(stats.failed_attempts, 0);
+    }
+
+    #[test]
+    fn test_rate_limit_stats_consistency() {
+        let stats = RateLimitStats {
+            total_attempts: 100,
+            successful_attempts: 75,
+            failed_attempts: 25,
+            attempts_last_hour: 10,
+            attempts_last_day: 50,
+            unique_ips: 20,
+            unique_users: 15,
+        };
+
+        // Total should equal successful + failed
+        assert_eq!(stats.total_attempts, stats.successful_attempts + stats.failed_attempts);
+
+        // Last hour should be <= last day <= total
+        assert!(stats.attempts_last_hour <= stats.attempts_last_day);
+        assert!(stats.attempts_last_day <= stats.total_attempts);
+    }
+
+    #[test]
+    fn test_failing_ip_info_with_high_failure_rate() {
+        let ip_info = FailingIpInfo {
+            ip_address: Some("198.51.100.10".to_string()),
+            attempt_count: Some(100),
+            failed_count: Some(95),
+            last_attempt_at: Some(Utc::now() - Duration::minutes(5)),
+        };
+
+        // High failure rate (95%)
+        let failure_rate = ip_info.failed_count.unwrap() as f64 / ip_info.attempt_count.unwrap() as f64;
+        assert!(failure_rate > 0.9);
+        assert!(ip_info.last_attempt_at.unwrap() < Utc::now());
+    }
+
+    #[test]
+    fn test_user_stats_calculation_helper() {
+        let stats = UserStats {
+            failed_attempts_24h: 8,
+            successful_attempts_24h: 2,
+            last_attempt_at: Some(Utc::now() - Duration::hours(2)),
+        };
+
+        // Calculate success rate
+        let total_attempts = stats.failed_attempts_24h + stats.successful_attempts_24h;
+        let success_rate = stats.successful_attempts_24h as f64 / total_attempts as f64;
+
+        assert_eq!(total_attempts, 10);
+        assert_eq!(success_rate, 0.2); // 20% success rate
+
+        // Check if last attempt was recent (within 24 hours)
+        let hours_since_last = Utc::now().signed_duration_since(stats.last_attempt_at.unwrap()).num_hours();
+        assert!(hours_since_last < 24);
+    }
+
+    #[test]
+    fn test_auth_attempt_time_ordering() {
+        let now = Utc::now();
+        let attempt1 = AuthAttempt {
+            id: Uuid::now_v7(),
+            ip_address: Some("192.168.1.1".to_string()),
+            user_id: Some(Uuid::now_v7()),
+            username: Some("user1".to_string()),
+            success: true,
+            user_agent: None,
+            created_at: now - Duration::minutes(10),
+        };
+
+        let attempt2 = AuthAttempt {
+            id: Uuid::now_v7(),
+            ip_address: Some("192.168.1.1".to_string()),
+            user_id: Some(Uuid::now_v7()),
+            username: Some("user2".to_string()),
+            success: false,
+            user_agent: None,
+            created_at: now,
+        };
+
+        assert!(attempt1.created_at < attempt2.created_at);
+        assert!(attempt2.created_at - attempt1.created_at == Duration::minutes(10));
+    }
+}

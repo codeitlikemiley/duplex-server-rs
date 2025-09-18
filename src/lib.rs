@@ -22,4 +22,7 @@ pub use infrastructure::repositories::PostgreSQL;
 pub use infrastructure::grpc::services::services as grpc_services;
 
 #[cfg(test)]
+pub mod test_utils;
+
+#[cfg(test)]
 mod tests;

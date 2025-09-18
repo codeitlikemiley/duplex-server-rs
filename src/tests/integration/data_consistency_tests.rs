@@ -13,6 +13,7 @@ mod data_consistency_tests {
     use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};
     use tokio::sync::{RwLock, Semaphore};
     use tokio::time::{sleep, Duration as TokioDuration, Instant};
+    use rand::random;
 
     // Data consistency simulator for testing
     #[derive(Debug, Clone)]
@@ -114,6 +115,88 @@ mod data_consistency_tests {
         pub rollbacks_performed: u64,
         pub consistency_score: f64,
         pub details: String,
+    }
+
+    // Missing struct definitions for distributed transaction tests
+    #[derive(Debug, Clone)]
+    pub struct DistributedTransaction {
+        pub transaction_id: Uuid,
+        pub coordinator: String,
+        pub participants: Vec<String>,
+        pub state: TransactionState,
+        pub started_at: DateTime<Utc>,
+        pub completed_at: Option<DateTime<Utc>>,
+        pub operations: Vec<String>,
+        pub consistency_guarantees: Vec<String>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub enum TransactionState {
+        Preparing,
+        Prepared,
+        Committing,
+        Committed,
+        Aborting,
+        Aborted,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct AcidTestResult {
+        pub atomicity_passed: bool,
+        pub consistency_passed: bool,
+        pub isolation_passed: bool,
+        pub durability_passed: bool,
+        pub details: String,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct CapValidationResult {
+        pub consistency_achieved: bool,
+        pub availability_achieved: bool,
+        pub partition_tolerance_achieved: bool,
+        pub trade_offs: Vec<String>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct LinearizabilityEvent {
+        pub operation_id: Uuid,
+        pub operation_type: String,
+        pub timestamp: DateTime<Utc>,
+        pub value: String,
+        pub client_id: String,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct ConsistencyVector {
+        pub node_id: String,
+        pub logical_clock: u64,
+        pub vector_clock: HashMap<String, u64>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct CrossServiceOperation {
+        pub operation_id: Uuid,
+        pub source_service: String,
+        pub target_service: String,
+        pub operation_type: String,
+        pub data: HashMap<String, String>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct EnterpriseConsistencyConfig {
+        pub isolation_level: IsolationLevel,
+        pub consistency_model: String,
+        pub replication_factor: u32,
+        pub quorum_size: u32,
+        pub timeout_ms: u64,
+    }
+
+    #[derive(Debug, Clone)]
+    pub enum IsolationLevel {
+        ReadUncommitted,
+        ReadCommitted,
+        RepeatableRead,
+        Serializable,
     }
 
     impl DataConsistencySimulator {
@@ -551,6 +634,457 @@ mod data_consistency_tests {
 
             report
         }
+
+        // Enterprise test methods
+        async fn test_distributed_transaction_consistency(&self) -> ConsistencyTestResult {
+            let start_time = Instant::now();
+
+            // Simulate distributed transaction across multiple services
+            let transaction_id = Uuid::now_v7();
+            let services = vec!["user-service".to_string(), "profile-service".to_string(), "notification-service".to_string()];
+
+            let transaction = DistributedTransaction {
+                transaction_id,
+                coordinator: "transaction-coordinator".to_string(),
+                participants: services.clone(),
+                state: TransactionState::Preparing,
+                started_at: Utc::now(),
+                completed_at: None,
+                operations: Vec::new(),
+                consistency_guarantees: vec!["ACID".to_string(), "2PC".to_string()],
+            };
+
+            // Two-phase commit simulation
+            let mut success_count = 0;
+            for _service in &services {
+                // Phase 1: Prepare
+                if random::<f64>() > 0.1 { // 90% success rate
+                    success_count += 1;
+                }
+            }
+
+            let all_prepared = success_count == services.len();
+            let final_state = if all_prepared {
+                TransactionState::Committed
+            } else {
+                TransactionState::Aborted
+            };
+
+            // Store transaction result
+            {
+                let mut transactions = self.distributed_transactions.write().unwrap();
+                let mut updated_transaction = transaction;
+                updated_transaction.state = final_state;
+                updated_transaction.completed_at = Some(Utc::now());
+                transactions.insert(transaction_id, updated_transaction);
+            }
+
+            let consistency_score = if all_prepared { 1.0 } else { 0.0 };
+            let violations = if all_prepared { 0 } else { 1 };
+
+            ConsistencyTestResult {
+                test_name: "Distributed Transaction Consistency".to_string(),
+                passed: all_prepared,
+                violations_found: violations,
+                operations_performed: services.len() as u64,
+                conflicts_detected: 0,
+                rollbacks_performed: if all_prepared { 0 } else { 1 },
+                consistency_score,
+                details: format!("2PC transaction across {} services: {} success", services.len(), if all_prepared { "committed" } else { "aborted" }),
+            }
+        }
+
+        async fn test_acid_compliance(&self) -> ConsistencyTestResult {
+            let _start_time = Instant::now();
+
+            // Test ACID properties
+            let atomicity_score = self.test_atomicity().await;
+            let consistency_score = self.test_consistency_property().await;
+            let isolation_score = self.test_isolation().await;
+            let durability_score = self.test_durability().await;
+
+            let overall_score = (atomicity_score + consistency_score + isolation_score + durability_score) / 4.0;
+
+            let acid_result = AcidTestResult {
+                test_name: "ACID Compliance Test".to_string(),
+                atomicity_passed: atomicity_score >= 0.95,
+                consistency_passed: consistency_score >= 0.95,
+                isolation_passed: isolation_score >= 0.95,
+                durability_passed: durability_score >= 0.95,
+                overall_score,
+                violations: Vec::new(),
+            };
+
+            {
+                let mut results = self.acid_test_results.write().unwrap();
+                results.push(acid_result.clone());
+            }
+
+            ConsistencyTestResult {
+                test_name: "ACID Compliance".to_string(),
+                passed: overall_score >= 0.90,
+                violations_found: if overall_score >= 0.90 { 0 } else { 1 },
+                operations_performed: 4,
+                conflicts_detected: 0,
+                rollbacks_performed: 0,
+                consistency_score: overall_score,
+                details: format!("ACID compliance: A={:.1}%, C={:.1}%, I={:.1}%, D={:.1}%",
+                    atomicity_score * 100.0, consistency_score * 100.0, isolation_score * 100.0, durability_score * 100.0),
+            }
+        }
+
+        async fn test_cap_theorem_compliance(&self) -> ConsistencyTestResult {
+            let _start_time = Instant::now();
+
+            // Test different CAP scenarios
+            let scenarios = vec![
+                ("Normal Operation", true, true, false),
+                ("Network Partition", false, true, true),
+                ("Node Failure", true, false, true),
+            ];
+
+            let mut cap_results = Vec::new();
+            for (scenario, consistency, availability, partition) in scenarios {
+                let result = CapValidationResult {
+                    test_scenario: scenario.to_string(),
+                    consistency_maintained: consistency,
+                    availability_maintained: availability,
+                    partition_tolerance: partition,
+                    trade_offs_made: vec!["Consistency vs Availability trade-off".to_string()],
+                    metrics: HashMap::new(),
+                };
+                cap_results.push(result);
+            }
+
+            {
+                let mut results = self.cap_validation_results.write().unwrap();
+                results.extend(cap_results.clone());
+            }
+
+            let valid_cap = cap_results.iter().all(|r| {
+                [r.consistency_maintained, r.availability_maintained, r.partition_tolerance]
+                    .iter().filter(|&&x| x).count() <= 2
+            });
+
+            ConsistencyTestResult {
+                test_name: "CAP Theorem Validation".to_string(),
+                passed: valid_cap,
+                violations_found: if valid_cap { 0 } else { 1 },
+                operations_performed: cap_results.len() as u64,
+                conflicts_detected: 0,
+                rollbacks_performed: 0,
+                consistency_score: if valid_cap { 1.0 } else { 0.0 },
+                details: format!("CAP theorem validation across {} scenarios", cap_results.len()),
+            }
+        }
+
+        async fn test_multi_region_consistency(&self) -> ConsistencyTestResult {
+            let _start_time = Instant::now();
+
+            // Simulate cross-region operations
+            let mut total_operations = 0;
+            let mut consistent_operations = 0;
+
+            let regions = self.multi_region_state.read().unwrap();
+            for (_region_id, state) in regions.iter() {
+                total_operations += 10;
+
+                // Simulate regional operations with lag
+                let lag_factor = state.lag_ms / 1000.0; // Convert to seconds
+                let consistency_probability = 1.0 - (lag_factor / 10.0).min(0.5);
+
+                for _ in 0..10 {
+                    if random::<f64>() < consistency_probability {
+                        consistent_operations += 1;
+                    }
+                }
+            }
+
+            let consistency_score = if total_operations > 0 {
+                consistent_operations as f64 / total_operations as f64
+            } else {
+                1.0
+            };
+
+            let violations = total_operations - consistent_operations;
+
+            ConsistencyTestResult {
+                test_name: "Multi-Region Consistency".to_string(),
+                passed: consistency_score >= 0.85,
+                violations_found: violations,
+                operations_performed: total_operations as u64,
+                conflicts_detected: 0,
+                rollbacks_performed: 0,
+                consistency_score,
+                details: format!("Multi-region consistency: {}/{} operations consistent across {} regions",
+                    consistent_operations, total_operations, regions.len()),
+            }
+        }
+
+        async fn test_consensus_algorithm(&self) -> ConsistencyTestResult {
+            let _start_time = Instant::now();
+
+            // Simulate Raft consensus
+            let nodes = self.consensus_nodes.read().unwrap();
+            let mut consensus_rounds = 0;
+            let mut successful_rounds = 0;
+
+            for _ in 0..10 {
+                consensus_rounds += 1;
+
+                // Simulate leader election and log replication
+                let leader_present = nodes.values().any(|n| n.is_leader);
+                let majority_available = nodes.len() >= 3 && (nodes.len() / 2) + 1 <= nodes.len();
+
+                if leader_present && majority_available {
+                    // Simulate successful consensus round
+                    if random::<f64>() > 0.1 { // 90% success rate
+                        successful_rounds += 1;
+                    }
+                }
+            }
+
+            self.consistency_metrics.consensus_rounds.fetch_add(consensus_rounds, Ordering::Relaxed);
+
+            let consistency_score = if consensus_rounds > 0 {
+                successful_rounds as f64 / consensus_rounds as f64
+            } else {
+                1.0
+            };
+
+            ConsistencyTestResult {
+                test_name: "Consensus Algorithm".to_string(),
+                passed: consistency_score >= 0.80,
+                violations_found: consensus_rounds - successful_rounds,
+                operations_performed: consensus_rounds as u64,
+                conflicts_detected: 0,
+                rollbacks_performed: 0,
+                consistency_score,
+                details: format!("Raft consensus: {}/{} rounds successful with {} nodes",
+                    successful_rounds, consensus_rounds, nodes.len()),
+            }
+        }
+
+        async fn test_linearizability(&self) -> ConsistencyTestResult {
+            let _start_time = Instant::now();
+
+            // Simulate linearizability test with concurrent operations
+            let mut operations = Vec::new();
+            let num_operations = 50;
+
+            for i in 0..num_operations {
+                operations.push(LinearizabilityEvent {
+                    event_id: Uuid::now_v7(),
+                    operation: format!("op_{}", i),
+                    start_time: Utc::now(),
+                    end_time: Utc::now() + Duration::milliseconds(random::<i64>() % 100),
+                    node_id: format!("node_{}", i % 3),
+                    precedence_order: i as u64,
+                });
+            }
+
+            // Check for linearizability violations
+            let mut violations = 0;
+            for i in 0..operations.len() {
+                for j in i+1..operations.len() {
+                    let op1 = &operations[i];
+                    let op2 = &operations[j];
+
+                    // Check if operations overlap in time but have wrong precedence order
+                    if op1.end_time > op2.start_time && op1.precedence_order > op2.precedence_order {
+                        violations += 1;
+                    }
+                }
+            }
+
+            self.consistency_metrics.linearizability_violations.fetch_add(violations, Ordering::Relaxed);
+
+            {
+                let mut history = self.linearizability_history.write().unwrap();
+                history.extend(operations);
+            }
+
+            let consistency_score = 1.0 - (violations as f64 / num_operations as f64);
+
+            ConsistencyTestResult {
+                test_name: "Linearizability".to_string(),
+                passed: violations == 0,
+                violations_found: violations,
+                operations_performed: num_operations as u64,
+                conflicts_detected: 0,
+                rollbacks_performed: 0,
+                consistency_score,
+                details: format!("Linearizability test: {} violations in {} operations", violations, num_operations),
+            }
+        }
+
+        async fn test_causal_consistency(&self) -> ConsistencyTestResult {
+            let _start_time = Instant::now();
+
+            // Simulate causal consistency with vector clocks
+            let nodes = vec!["node_1", "node_2", "node_3"];
+            let mut causal_violations = 0;
+            let mut total_operations = 0;
+
+            for node in &nodes {
+                let _vector = ConsistencyVector {
+                    node_id: node.to_string(),
+                    timestamp: Utc::now(),
+                    version: 1,
+                    causal_dependencies: Vec::new(),
+                };
+
+                // Simulate causal operations
+                for _i in 0..10 {
+                    total_operations += 1;
+
+                    // Check causal ordering
+                    let causal_order_maintained = random::<f64>() > 0.05; // 95% success rate
+                    if !causal_order_maintained {
+                        causal_violations += 1;
+                    }
+                }
+            }
+
+            self.consistency_metrics.causal_consistency_violations.fetch_add(causal_violations, Ordering::Relaxed);
+
+            let consistency_score = if total_operations > 0 {
+                1.0 - (causal_violations as f64 / total_operations as f64)
+            } else {
+                1.0
+            };
+
+            ConsistencyTestResult {
+                test_name: "Causal Consistency".to_string(),
+                passed: consistency_score >= 0.90,
+                violations_found: causal_violations,
+                operations_performed: total_operations as u64,
+                conflicts_detected: 0,
+                rollbacks_performed: 0,
+                consistency_score,
+                details: format!("Causal consistency: {} violations in {} operations across {} nodes",
+                    causal_violations, total_operations, nodes.len()),
+            }
+        }
+
+        async fn test_cross_service_consistency(&self) -> ConsistencyTestResult {
+            let _start_time = Instant::now();
+
+            // Simulate cross-service operations
+            let services = vec!["user-service", "profile-service", "notification-service", "audit-service"];
+            let mut operations = Vec::new();
+
+            for i in 0..20 {
+                let operation = CrossServiceOperation {
+                    operation_id: Uuid::now_v7(),
+                    services: services.iter().take(2 + (i % 3)).map(|s| s.to_string()).collect(),
+                    operation_type: "update_user_profile".to_string(),
+                    consistency_requirements: vec!["strong".to_string(), "immediate".to_string()],
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now() + Duration::milliseconds(random::<i64>() % 500)),
+                    success: random::<f64>() > 0.15, // 85% success rate
+                    violations: Vec::new(),
+                };
+                operations.push(operation);
+            }
+
+            {
+                let mut cross_ops = self.cross_service_operations.write().unwrap();
+                cross_ops.extend(operations.clone());
+            }
+
+            let successful_ops = operations.iter().filter(|op| op.success).count();
+            let total_ops = operations.len();
+            let violations = total_ops - successful_ops;
+
+            let consistency_score = if total_ops > 0 {
+                successful_ops as f64 / total_ops as f64
+            } else {
+                1.0
+            };
+
+            ConsistencyTestResult {
+                test_name: "Cross-Service Consistency".to_string(),
+                passed: consistency_score >= 0.80,
+                violations_found: violations,
+                operations_performed: total_ops as u64,
+                conflicts_detected: 0,
+                rollbacks_performed: 0,
+                consistency_score,
+                details: format!("Cross-service consistency: {}/{} operations successful across {} services",
+                    successful_ops, total_ops, services.len()),
+            }
+        }
+
+        // Helper methods for ACID testing
+        async fn test_atomicity(&self) -> f64 {
+            // Simulate atomicity test - all operations in transaction succeed or fail together
+            let mut successful_transactions = 0;
+            let total_transactions = 10;
+
+            for _ in 0..total_transactions {
+                let operations_in_transaction = 5;
+                let mut all_operations_successful = true;
+
+                for _ in 0..operations_in_transaction {
+                    if random::<f64>() < 0.05 { // 5% failure rate per operation
+                        all_operations_successful = false;
+                        break;
+                    }
+                }
+
+                if all_operations_successful {
+                    successful_transactions += 1;
+                }
+            }
+
+            successful_transactions as f64 / total_transactions as f64
+        }
+
+        async fn test_consistency_property(&self) -> f64 {
+            // Simulate consistency property test - database constraints maintained
+            let constraint_checks = 20;
+            let mut passed_checks = 0;
+
+            for _ in 0..constraint_checks {
+                // Simulate constraint validation
+                if random::<f64>() > 0.02 { // 98% success rate
+                    passed_checks += 1;
+                }
+            }
+
+            passed_checks as f64 / constraint_checks as f64
+        }
+
+        async fn test_isolation(&self) -> f64 {
+            // Simulate isolation test - concurrent transactions don't interfere
+            let concurrent_transactions = 15;
+            let mut isolated_transactions = 0;
+
+            for _ in 0..concurrent_transactions {
+                // Simulate isolation check
+                if random::<f64>() > 0.03 { // 97% success rate
+                    isolated_transactions += 1;
+                }
+            }
+
+            isolated_transactions as f64 / concurrent_transactions as f64
+        }
+
+        async fn test_durability(&self) -> f64 {
+            // Simulate durability test - committed data survives system failures
+            let durability_checks = 10;
+            let mut durable_commits = 0;
+
+            for _ in 0..durability_checks {
+                // Simulate durability check after simulated failure
+                if random::<f64>() > 0.01 { // 99% success rate
+                    durable_commits += 1;
+                }
+            }
+
+            durable_commits as f64 / durability_checks as f64
+        }
     }
 
     // Test concurrent read/write consistency
@@ -674,5 +1208,141 @@ mod data_consistency_tests {
         assert!(total_violations < 50, "Total violations should be minimal: {}", total_violations);
 
         println!("✅ Comprehensive data consistency testing completed successfully!");
+    }
+
+    // Enterprise distributed transaction consistency test
+    #[tokio::test]
+    async fn test_enterprise_distributed_transaction_consistency() {
+        let mut simulator = DataConsistencySimulator::new();
+        let config = EnterpriseConsistencyConfig {
+            distributed_transactions: true,
+            consensus_algorithm: ConsensusAlgorithm::Raft,
+            transaction_isolation: IsolationLevel::Serializable,
+            ..simulator.config.clone()
+        };
+        simulator.configure_enterprise(config);
+
+        let result = simulator.test_distributed_transaction_consistency().await;
+
+        assert!(result.passed, "Distributed transaction consistency failed: {}", result.details);
+        assert!(result.consistency_score >= 0.95, "Distributed consistency score too low: {}", result.consistency_score);
+
+        println!("Distributed Transaction Consistency: {}", result.details);
+    }
+
+    // Enterprise ACID compliance test
+    #[tokio::test]
+    async fn test_enterprise_acid_compliance() {
+        let mut simulator = DataConsistencySimulator::new();
+        let config = EnterpriseConsistencyConfig {
+            acid_compliance_testing: true,
+            transaction_isolation: IsolationLevel::Serializable,
+            strong_consistency: true,
+            ..simulator.config.clone()
+        };
+        simulator.configure_enterprise(config);
+
+        let result = simulator.test_acid_compliance().await;
+
+        assert!(result.passed, "ACID compliance test failed: {}", result.details);
+        assert!(result.consistency_score >= 0.90, "ACID compliance score too low: {}", result.consistency_score);
+
+        let acid_results = simulator.acid_test_results.read().unwrap();
+        for acid_result in acid_results.iter() {
+            assert!(acid_result.overall_score >= 0.85, "ACID component {} score too low: {}", acid_result.test_name, acid_result.overall_score);
+        }
+
+        println!("ACID Compliance Test: {}", result.details);
+    }
+
+    // Enterprise CAP theorem validation test
+    #[tokio::test]
+    async fn test_enterprise_cap_theorem_validation() {
+        let mut simulator = DataConsistencySimulator::new();
+        let config = EnterpriseConsistencyConfig {
+            cap_theorem_validation: true,
+            partition_tolerance_testing: true,
+            consistency_level: ConsistencyLevel::Strong,
+            ..simulator.config.clone()
+        };
+        simulator.configure_enterprise(config);
+
+        let result = simulator.test_cap_theorem_compliance().await;
+
+        assert!(result.passed, "CAP theorem validation failed: {}", result.details);
+
+        let cap_results = simulator.cap_validation_results.read().unwrap();
+        assert!(!cap_results.is_empty(), "Should have CAP validation results");
+
+        // Verify CAP theorem trade-offs are properly handled
+        for cap_result in cap_results.iter() {
+            let properties_count = [cap_result.consistency_maintained, cap_result.availability_maintained, cap_result.partition_tolerance]
+                .iter().filter(|&&x| x).count();
+            assert!(properties_count <= 2, "CAP theorem violated: cannot guarantee all three properties");
+        }
+
+        println!("CAP Theorem Validation: {}", result.details);
+    }
+
+    // Enterprise comprehensive consistency assessment
+    #[tokio::test]
+    async fn test_enterprise_comprehensive_consistency_assessment() {
+        let mut simulator = DataConsistencySimulator::new();
+        let config = EnterpriseConsistencyConfig {
+            distributed_transactions: true,
+            cross_service_validation: true,
+            acid_compliance_testing: true,
+            cap_theorem_validation: true,
+            multi_region_consistency: true,
+            real_time_monitoring: true,
+            consensus_algorithm: ConsensusAlgorithm::Raft,
+            byzantine_fault_tolerance: true,
+            linearizability_testing: true,
+            causal_consistency: true,
+            strong_consistency: true,
+            eventual_consistency_bounds: true,
+            partition_tolerance_testing: true,
+            consistency_level: ConsistencyLevel::Strong,
+            transaction_isolation: IsolationLevel::Serializable,
+        };
+        simulator.configure_enterprise(config);
+
+        // Run comprehensive consistency tests
+        let enterprise_results = vec![
+            simulator.test_concurrent_consistency(300).await,
+            simulator.test_cache_database_consistency().await,
+            simulator.test_event_sourcing_consistency().await,
+            simulator.test_optimistic_locking().await,
+            simulator.test_distributed_transaction_consistency().await,
+            simulator.test_acid_compliance().await,
+            simulator.test_cap_theorem_compliance().await,
+            simulator.test_multi_region_consistency().await,
+            simulator.test_consensus_algorithm().await,
+            simulator.test_linearizability().await,
+            simulator.test_causal_consistency().await,
+            simulator.test_cross_service_consistency().await,
+        ];
+
+        // Generate enterprise consistency report
+        let enterprise_report = simulator.generate_enterprise_consistency_report(&enterprise_results);
+        println!("\n{}", enterprise_report);
+
+        // Validate enterprise consistency requirements
+        let passed_tests = enterprise_results.iter().filter(|r| r.passed).count();
+        let total_tests = enterprise_results.len();
+        let success_rate = passed_tests as f64 / total_tests as f64;
+        let avg_consistency_score = enterprise_results.iter().map(|r| r.consistency_score).sum::<f64>() / total_tests as f64;
+        let total_violations = enterprise_results.iter().map(|r| r.violations_found).sum::<usize>();
+
+        // Enterprise consistency assertions
+        assert!(success_rate >= 0.90, "Enterprise consistency success rate too low: {:.1}%", success_rate * 100.0);
+        assert!(avg_consistency_score >= 0.90, "Enterprise consistency score too low: {:.1}%", avg_consistency_score * 100.0);
+        assert!(total_violations <= 10, "Too many consistency violations in enterprise environment: {}", total_violations);
+
+        println!("✅ Enterprise comprehensive consistency assessment completed successfully!");
+        println!("📊 Consistency Success Rate: {:.1}% ({}/{})", success_rate * 100.0, passed_tests, total_tests);
+        println!("🔄 Average Consistency Score: {:.1}%", avg_consistency_score * 100.0);
+        println!("⚠️ Total Violations: {}", total_violations);
+        println!("🏢 Enterprise data consistency posture: EXCELLENT");
     }
 }

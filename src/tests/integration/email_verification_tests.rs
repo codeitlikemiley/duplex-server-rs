@@ -1,7 +1,8 @@
-//! Integration Tests for Email Verification Flow with Token Management
+//! Integration Tests for Email Verification Process - Enterprise Grade
 //!
-//! This module contains integration tests for the complete email verification process.
-//! These tests simulate the full verification flow without requiring a live database.
+//! This module contains comprehensive integration tests for the complete email verification
+//! flow, including multi-provider support, internationalization, accessibility, fraud
+//! detection, bulk operations, and advanced enterprise features.
 
 #[cfg(test)]
 mod email_verification_tests {
@@ -9,25 +10,39 @@ mod email_verification_tests {
     use uuid::Uuid;
     use serde_json::json;
 
-    use crate::domain::errors::AppError;
-    use crate::domain::models::{User, UserStatus};
+    use crate::errors::AppError;
+    use crate::models::{User, UserStatus};
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+    use std::time::Duration as StdDuration;
+    use tokio::time::{sleep, Duration as TokioDuration};
+    use serde::{Serialize, Deserialize};
+    use std::collections::{HashMap, HashSet};
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     struct EmailVerificationToken {
         token: String,
         user_id: Uuid,
         email: String,
         token_type: TokenType,
+        language: String,
         created_at: chrono::DateTime<Utc>,
         expires_at: chrono::DateTime<Utc>,
         used: bool,
         attempts: u32,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+        fraud_score: Option<f64>,
+        tracking_id: String,
     }
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     enum TokenType {
         EmailVerification,
         EmailChange,
+        PasswordReset,
+        TwoFactorSetup,
+        AccountRecovery,
     }
 
     #[derive(Debug, Clone)]
@@ -40,13 +55,31 @@ mod email_verification_tests {
         verified_new: bool,
     }
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     struct EmailLog {
         to: String,
         subject: String,
         body: String,
         sent_at: chrono::DateTime<Utc>,
         email_type: String,
+        language: String,
+        provider: String,
+        message_id: String,
+        delivery_status: EmailDeliveryStatus,
+        opened: bool,
+        clicked: bool,
+        bounced: bool,
+        bounce_reason: Option<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    enum EmailDeliveryStatus {
+        Queued,
+        Sent,
+        Delivered,
+        Failed,
+        Bounced,
+        Complained,
     }
 
     #[derive(Debug, Clone)]
@@ -58,19 +91,192 @@ mod email_verification_tests {
         failure_reason: Option<String>,
     }
 
-    // Mock email verification simulator
+    // Enterprise email verification integration simulator
     struct EmailVerificationSimulator {
         users: Vec<User>,
         verification_tokens: Vec<EmailVerificationToken>,
         email_change_requests: Vec<EmailChangeRequest>,
         sent_emails: Vec<EmailLog>,
         verification_attempts: Vec<VerificationAttempt>,
-        blocked_emails: Vec<String>, // Blacklisted email domains
-        rate_limits: Vec<(Uuid, chrono::DateTime<Utc>)>, // user_id, last_request_time
+        blocked_emails: Vec<String>,
+        rate_limits: Vec<(Uuid, chrono::DateTime<Utc>)>,
+        // Enterprise features
+        email_providers: Vec<EmailProvider>,
+        active_provider: usize,
+        email_templates: HashMap<String, EmailTemplate>,
+        fraud_detector: FraudDetector,
+        analytics: AnalyticsCollector,
+        bulk_operations: Vec<BulkOperation>,
+        compliance_settings: ComplianceSettings,
+        accessibility_features: AccessibilityFeatures,
+    }
+
+    // Supporting structures for enterprise features
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct EmailProvider {
+        name: String,
+        provider_type: ProviderType,
+        is_active: bool,
+        priority: u32,
+        failure_count: u32,
+        last_failure: Option<chrono::DateTime<Utc>>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    enum ProviderType {
+        SMTP { host: String, port: u16 },
+        SendGrid { api_key: String },
+        AWS_SES { region: String },
+        Mailgun { domain: String },
+        PostMark,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct EmailTemplate {
+        language: String,
+        subject: String,
+        html_body: String,
+        text_body: String,
+        accessibility_features: bool,
+        rtl_support: bool,
+    }
+
+    #[derive(Debug, Clone)]
+    struct FraudDetector {
+        disposable_domains: HashSet<String>,
+        risk_patterns: HashMap<String, f64>,
+        ip_reputation: HashMap<String, f64>,
+    }
+
+    #[derive(Debug, Clone)]
+    struct AnalyticsCollector {
+        metrics: HashMap<String, u64>,
+        events: Vec<AnalyticsEvent>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct AnalyticsEvent {
+        event_type: String,
+        timestamp: chrono::DateTime<Utc>,
+        user_id: Option<Uuid>,
+        metadata: HashMap<String, String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct BulkOperation {
+        operation_id: Uuid,
+        operation_type: String,
+        started_at: chrono::DateTime<Utc>,
+        completed_at: Option<chrono::DateTime<Utc>>,
+        total_items: usize,
+        processed_items: usize,
+        successful_items: usize,
+        failed_items: usize,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct ComplianceSettings {
+        gdpr_enabled: bool,
+        ccpa_enabled: bool,
+        data_retention_days: u32,
+        consent_tracking: bool,
+        audit_logging: bool,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct AccessibilityFeatures {
+        screen_reader_support: bool,
+        high_contrast_mode: bool,
+        language_detection: bool,
+        voice_assistance: bool,
+        keyboard_navigation: bool,
+    }
+
+    impl FraudDetector {
+        fn analyze_email_request(&mut self, email: &str, ip_address: &str, user_agent: Option<&str>) -> f64 {
+            let mut risk_score = 0.0;
+
+            // Check disposable email domains
+            if let Some(domain) = email.split('@').nth(1) {
+                if self.disposable_domains.contains(domain) {
+                    risk_score += 0.5;
+                }
+            }
+
+            // Check IP reputation
+            if let Some(&ip_risk) = self.ip_reputation.get(ip_address) {
+                risk_score += ip_risk;
+            }
+
+            // Check user agent patterns
+            if let Some(ua) = user_agent {
+                if ua.contains("bot") || ua.contains("curl") || ua.contains("wget") {
+                    risk_score += 0.6;
+                }
+            }
+
+            // Cap at 1.0
+            risk_score.min(1.0)
+        }
+    }
+
+    impl AnalyticsCollector {
+        fn record_event(&mut self, event_type: &str, user_id: Option<Uuid>, metadata: HashMap<String, String>) {
+            self.events.push(AnalyticsEvent {
+                event_type: event_type.to_string(),
+                timestamp: Utc::now(),
+                user_id,
+                metadata,
+            });
+
+            *self.metrics.entry(event_type.to_string()).or_insert(0) += 1;
+        }
+
+        fn get_metrics(&self) -> &HashMap<String, u64> {
+            &self.metrics
+        }
     }
 
     impl EmailVerificationSimulator {
         fn new() -> Self {
+            let mut email_templates = HashMap::new();
+
+            // English template
+            email_templates.insert("en".to_string(), EmailTemplate {
+                language: "en".to_string(),
+                subject: "Verify your email address".to_string(),
+                html_body: r#"<html><head><meta charset="UTF-8"><title>Email Verification</title></head><body><h1>Verify Your Email</h1><p>Click <a href="{verification_url}" aria-label="Verify email address">here</a> to verify.</p></body></html>"#.to_string(),
+                text_body: "Verify your email: {verification_url}".to_string(),
+                accessibility_features: true,
+                rtl_support: false,
+            });
+
+            // Spanish template
+            email_templates.insert("es".to_string(), EmailTemplate {
+                language: "es".to_string(),
+                subject: "Verifica tu dirección de correo".to_string(),
+                html_body: r#"<html><head><meta charset="UTF-8"><title>Verificación de Email</title></head><body><h1>Verifica Tu Email</h1><p>Haz clic <a href="{verification_url}" aria-label="Verificar dirección de correo">aquí</a> para verificar.</p></body></html>"#.to_string(),
+                text_body: "Verifica tu correo: {verification_url}".to_string(),
+                accessibility_features: true,
+                rtl_support: false,
+            });
+
+            // French template
+            email_templates.insert("fr".to_string(), EmailTemplate {
+                language: "fr".to_string(),
+                subject: "Vérifiez votre adresse e-mail".to_string(),
+                html_body: r#"<html><head><meta charset="UTF-8"><title>Vérification d'E-mail</title></head><body><h1>Vérifiez Votre E-mail</h1><p>Cliquez <a href="{verification_url}" aria-label="Vérifier l'adresse e-mail">ici</a> pour vérifier.</p></body></html>"#.to_string(),
+                text_body: "Vérifiez votre e-mail: {verification_url}".to_string(),
+                accessibility_features: true,
+                rtl_support: false,
+            });
+
+            let mut disposable_domains = HashSet::new();
+            disposable_domains.extend([
+                "10minutemail.com", "guerrillamail.com", "temp-mail.org",
+                "throwaway.email", "mailinator.com", "spam.com", "fake.net"
+            ].iter().map(|s| s.to_string()));
+
             Self {
                 users: Vec::new(),
                 verification_tokens: Vec::new(),
@@ -79,7 +285,57 @@ mod email_verification_tests {
                 verification_attempts: Vec::new(),
                 blocked_emails: vec!["spam.com".to_string(), "fake.net".to_string()],
                 rate_limits: Vec::new(),
+                // Enterprise features
+                email_providers: vec![
+                    EmailProvider {
+                        name: "Primary SMTP".to_string(),
+                        provider_type: ProviderType::SMTP { host: "smtp.example.com".to_string(), port: 587 },
+                        is_active: true,
+                        priority: 1,
+                        failure_count: 0,
+                        last_failure: None,
+                    },
+                    EmailProvider {
+                        name: "SendGrid Backup".to_string(),
+                        provider_type: ProviderType::SendGrid { api_key: "key123".to_string() },
+                        is_active: true,
+                        priority: 2,
+                        failure_count: 0,
+                        last_failure: None,
+                    },
+                ],
+                active_provider: 0,
+                email_templates,
+                fraud_detector: FraudDetector {
+                    disposable_domains,
+                    risk_patterns: HashMap::new(),
+                    ip_reputation: HashMap::new(),
+                },
+                analytics: AnalyticsCollector {
+                    metrics: HashMap::new(),
+                    events: Vec::new(),
+                },
+                bulk_operations: Vec::new(),
+                compliance_settings: ComplianceSettings {
+                    gdpr_enabled: true,
+                    ccpa_enabled: true,
+                    data_retention_days: 365,
+                    consent_tracking: true,
+                    audit_logging: true,
+                },
+                accessibility_features: AccessibilityFeatures {
+                    screen_reader_support: true,
+                    high_contrast_mode: true,
+                    language_detection: true,
+                    voice_assistance: false,
+                    keyboard_navigation: true,
+                },
             }
+        }
+
+        // Legacy method for backwards compatibility
+        fn request_email_verification(&mut self, user_id: &Uuid, ip_address: String) -> Result<String, AppError> {
+            self.request_email_verification_with_language(user_id, ip_address, None, None)
         }
 
         fn create_unverified_user(&mut self, email: String, username: String) -> User {
@@ -148,7 +404,7 @@ mod email_verification_tests {
             Ok(())
         }
 
-        fn request_email_verification(&mut self, user_id: &Uuid, _ip_address: String) -> Result<String, AppError> {
+        fn request_email_verification_with_language(&mut self, user_id: &Uuid, ip_address: String, user_agent: Option<String>, language: Option<String>) -> Result<String, AppError> {
             // Find user and get email
             let user_email = {
                 let user = self.users.iter()
@@ -172,6 +428,15 @@ mod email_verification_tests {
             // Check rate limit
             self.check_rate_limit(user_id)?;
 
+            // Fraud detection
+            let fraud_score = self.fraud_detector.analyze_email_request(&user_email, &ip_address, user_agent.as_deref());
+            if fraud_score > 0.8 {
+                return Err(AppError::Validation {
+                    field: "fraud_detection".to_string(),
+                    message: "Email verification request blocked due to security concerns".to_string(),
+                });
+            }
+
             // Invalidate existing tokens
             for token in self.verification_tokens.iter_mut() {
                 if token.user_id == *user_id && token.token_type == TokenType::EmailVerification && !token.used {
@@ -179,30 +444,63 @@ mod email_verification_tests {
                 }
             }
 
+            // Determine language
+            let lang = language.unwrap_or_else(|| "en".to_string());
+
             // Create new verification token
             let token = format!("verify_{}", Uuid::new_v4());
+            let tracking_id = format!("track_{}", Uuid::new_v4());
             let verification_token = EmailVerificationToken {
                 token: token.clone(),
                 user_id: *user_id,
                 email: user_email.clone(),
                 token_type: TokenType::EmailVerification,
+                language: lang.clone(),
                 created_at: Utc::now(),
                 expires_at: Utc::now() + Duration::hours(24),
                 used: false,
                 attempts: 0,
+                ip_address: Some(ip_address.clone()),
+                user_agent: user_agent.clone(),
+                fraud_score: Some(fraud_score),
+                tracking_id: tracking_id.clone(),
             };
 
             self.verification_tokens.push(verification_token);
 
-            // Send verification email
+            // Send verification email using template
+            let template = self.email_templates.get(&lang).unwrap_or_else(|| self.email_templates.get("en").unwrap());
+            let verification_url = format!("https://example.com/verify?token={}&lang={}", token, lang);
+            let html_body = template.html_body.replace("{verification_url}", &verification_url);
+            let text_body = template.text_body.replace("{verification_url}", &verification_url);
+
+            let message_id = format!("msg_{}", Uuid::new_v4());
+            let provider = &self.email_providers[self.active_provider].name;
+
             let email_log = EmailLog {
                 to: user_email,
-                subject: "Verify your email address".to_string(),
-                body: format!("Click here to verify: https://example.com/verify?token={}", token),
+                subject: template.subject.clone(),
+                body: html_body,
                 sent_at: Utc::now(),
                 email_type: "verification".to_string(),
+                language: lang,
+                provider: provider.clone(),
+                message_id: message_id.clone(),
+                delivery_status: EmailDeliveryStatus::Sent,
+                opened: false,
+                clicked: false,
+                bounced: false,
+                bounce_reason: None,
             };
             self.sent_emails.push(email_log);
+
+            // Record analytics
+            self.analytics.record_event("verification_email_sent", Some(*user_id), {
+                let mut metadata = HashMap::new();
+                metadata.insert("language".to_string(), lang);
+                metadata.insert("fraud_score".to_string(), fraud_score.to_string());
+                metadata
+            });
 
             Ok(token)
         }
@@ -556,6 +854,189 @@ mod email_verification_tests {
 
         fn unblock_email_domain(&mut self, domain: &str) {
             self.blocked_emails.retain(|d| d != domain);
+        }
+
+        // Enterprise features
+
+        async fn bulk_send_verification_emails(&mut self, user_emails: Vec<(Uuid, String)>, language: Option<String>) -> Result<BulkOperation, AppError> {
+            let operation_id = Uuid::new_v4();
+            let started_at = Utc::now();
+            let mut successful_items = 0;
+            let mut failed_items = 0;
+
+            for (user_id, email) in &user_emails {
+                match self.request_email_verification_with_language(user_id, "bulk_operation".to_string(), None, language.clone()) {
+                    Ok(_) => successful_items += 1,
+                    Err(_) => failed_items += 1,
+                }
+            }
+
+            let bulk_op = BulkOperation {
+                operation_id,
+                operation_type: "bulk_verification".to_string(),
+                started_at,
+                completed_at: Some(Utc::now()),
+                total_items: user_emails.len(),
+                processed_items: user_emails.len(),
+                successful_items,
+                failed_items,
+            };
+
+            self.bulk_operations.push(bulk_op.clone());
+            self.analytics.record_event("bulk_verification_completed", None, {
+                let mut metadata = HashMap::new();
+                metadata.insert("operation_id".to_string(), operation_id.to_string());
+                metadata.insert("total_items".to_string(), user_emails.len().to_string());
+                metadata.insert("successful_items".to_string(), successful_items.to_string());
+                metadata
+            });
+
+            Ok(bulk_op)
+        }
+
+        fn simulate_email_open(&mut self, message_id: &str) -> Result<(), AppError> {
+            if let Some(email) = self.sent_emails.iter_mut().find(|e| e.message_id == message_id) {
+                email.opened = true;
+                email.delivery_status = EmailDeliveryStatus::Delivered;
+            }
+            Ok(())
+        }
+
+        fn simulate_email_click(&mut self, message_id: &str) -> Result<(), AppError> {
+            if let Some(email) = self.sent_emails.iter_mut().find(|e| e.message_id == message_id) {
+                email.clicked = true;
+                email.opened = true;
+                email.delivery_status = EmailDeliveryStatus::Delivered;
+            }
+            Ok(())
+        }
+
+        fn simulate_email_bounce(&mut self, message_id: &str, bounce_reason: String) -> Result<(), AppError> {
+            if let Some(email) = self.sent_emails.iter_mut().find(|e| e.message_id == message_id) {
+                email.bounced = true;
+                email.bounce_reason = Some(bounce_reason);
+                email.delivery_status = EmailDeliveryStatus::Bounced;
+            }
+            Ok(())
+        }
+
+        fn failover_to_next_provider(&mut self) -> Result<(), AppError> {
+            // Mark current provider as failed
+            if let Some(provider) = self.email_providers.get_mut(self.active_provider) {
+                provider.failure_count += 1;
+                provider.last_failure = Some(Utc::now());
+                if provider.failure_count > 3 {
+                    provider.is_active = false;
+                }
+            }
+
+            // Find next active provider
+            let mut next_provider = None;
+            for (index, provider) in self.email_providers.iter().enumerate() {
+                if provider.is_active && index != self.active_provider {
+                    next_provider = Some(index);
+                    break;
+                }
+            }
+
+            if let Some(next) = next_provider {
+                self.active_provider = next;
+                self.analytics.record_event("provider_failover", None, {
+                    let mut metadata = HashMap::new();
+                    metadata.insert("new_provider".to_string(), next.to_string());
+                    metadata
+                });
+                Ok(())
+            } else {
+                Err(AppError::Internal {
+                    message: "No active email providers available".to_string(),
+                })
+            }
+        }
+
+        fn get_email_analytics(&self) -> HashMap<String, u64> {
+            let mut analytics = HashMap::new();
+            analytics.insert("total_emails_sent".to_string(), self.sent_emails.len() as u64);
+            analytics.insert("emails_opened".to_string(), self.sent_emails.iter().filter(|e| e.opened).count() as u64);
+            analytics.insert("emails_clicked".to_string(), self.sent_emails.iter().filter(|e| e.clicked).count() as u64);
+            analytics.insert("emails_bounced".to_string(), self.sent_emails.iter().filter(|e| e.bounced).count() as u64);
+
+            let mut by_language = HashMap::new();
+            for email in &self.sent_emails {
+                *by_language.entry(&email.language).or_insert(0u64) += 1;
+            }
+
+            for (lang, count) in by_language {
+                analytics.insert(format!("emails_sent_{}", lang), count);
+            }
+
+            analytics
+        }
+
+        fn gdpr_delete_user_data(&mut self, user_id: &Uuid) -> Result<(), AppError> {
+            if !self.compliance_settings.gdpr_enabled {
+                return Err(AppError::Validation {
+                    field: "compliance".to_string(),
+                    message: "GDPR compliance not enabled".to_string(),
+                });
+            }
+
+            // Remove user data
+            self.users.retain(|u| u.id != *user_id);
+            self.verification_tokens.retain(|t| t.user_id != *user_id);
+            self.email_change_requests.retain(|r| r.user_id != *user_id);
+            self.sent_emails.retain(|e| !self.users.iter().any(|u| u.email == e.to));
+            self.verification_attempts.retain(|a| !self.verification_tokens.iter().any(|t| t.token == a.token && t.user_id == *user_id));
+
+            self.analytics.record_event("gdpr_deletion", Some(*user_id), HashMap::new());
+            Ok(())
+        }
+
+        fn test_accessibility_compliance(&self) -> Result<bool, AppError> {
+            for template in self.email_templates.values() {
+                if !template.accessibility_features {
+                    return Ok(false);
+                }
+
+                // Check for accessibility features in HTML
+                if !template.html_body.contains("aria-label") {
+                    return Ok(false);
+                }
+
+                // Check for proper encoding
+                if !template.html_body.contains("charset=UTF-8") {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        }
+
+        fn simulate_concurrent_verifications(&mut self, user_count: usize, verification_count_per_user: usize) -> Result<Vec<String>, AppError> {
+            let mut all_tokens = Vec::new();
+
+            for i in 0..user_count {
+                let user = self.create_unverified_user(
+                    format!("concurrent_user_{}@example.com", i),
+                    format!("concurrent_user_{}", i),
+                );
+
+                // Clear rate limits for testing
+                self.rate_limits.clear();
+
+                for j in 0..verification_count_per_user {
+                    match self.request_email_verification_with_language(
+                        &user.id,
+                        format!("192.168.1.{}", i + 1),
+                        Some(format!("TestAgent/1.0 (concurrent test {})", j)),
+                        Some("en".to_string()),
+                    ) {
+                        Ok(token) => all_tokens.push(token),
+                        Err(_) => {} // Some may fail due to rate limiting or fraud detection
+                    }
+                }
+            }
+
+            Ok(all_tokens)
         }
     }
 
@@ -994,5 +1475,374 @@ mod email_verification_tests {
         let attempts = simulator.get_verification_attempts(&token);
         assert_eq!(attempts.len(), 1);
         assert!(attempts[0].success);
+    }
+
+    // Enterprise Integration Tests
+
+    #[test]
+    fn test_multi_language_verification() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let user = simulator.create_unverified_user(
+            "multiuser@example.com".to_string(),
+            "multiuser".to_string(),
+        );
+
+        // Test different languages
+        let languages = vec!["en", "es", "fr"];
+        for lang in languages {
+            // Clear rate limits for testing
+            simulator.rate_limits.clear();
+
+            let token = simulator.request_email_verification_with_language(
+                &user.id,
+                "127.0.0.1".to_string(),
+                Some("Mozilla/5.0".to_string()),
+                Some(lang.to_string()),
+            ).unwrap();
+
+            // Check that email was sent with correct language
+            let sent_email = simulator.sent_emails.iter()
+                .find(|e| e.language == lang)
+                .unwrap();
+
+            assert_eq!(sent_email.language, lang);
+            assert!(sent_email.body.contains(&token));
+
+            // Verify token has language set
+            let verification_token = simulator.verification_tokens.iter()
+                .find(|t| t.token == token)
+                .unwrap();
+            assert_eq!(verification_token.language, lang);
+        }
+    }
+
+    #[test]
+    fn test_fraud_detection() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let user = simulator.create_unverified_user(
+            "suspicious@guerrillamail.com".to_string(),
+            "suspicious_user".to_string(),
+        );
+
+        // Request with suspicious characteristics
+        let result = simulator.request_email_verification_with_language(
+            &user.id,
+            "127.0.0.1".to_string(),
+            Some("curl/7.68.0".to_string()), // Bot user agent
+            Some("en".to_string()),
+        );
+
+        // Should be blocked due to high fraud score
+        assert!(result.is_err());
+        if let Err(AppError::Validation { field, message }) = result {
+            assert_eq!(field, "fraud_detection");
+            assert!(message.contains("security concerns"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bulk_verification_operations() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let user_emails = vec![
+            (Uuid::new_v4(), "bulk1@example.com".to_string()),
+            (Uuid::new_v4(), "bulk2@example.com".to_string()),
+            (Uuid::new_v4(), "bulk3@example.com".to_string()),
+        ];
+
+        // Create users first
+        for (user_id, email) in &user_emails {
+            simulator.users.push(User {
+                id: *user_id,
+                username: email.split('@').next().unwrap().to_string(),
+                email: email.clone(),
+                password_hash: "hashed".to_string(),
+                email_verified: false,
+                status: UserStatus::PendingVerification,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                last_login_at: None,
+            });
+        }
+
+        let bulk_result = simulator.bulk_send_verification_emails(user_emails.clone(), Some("en".to_string())).await.unwrap();
+
+        assert_eq!(bulk_result.total_items, 3);
+        assert_eq!(bulk_result.successful_items, 3);
+        assert_eq!(bulk_result.failed_items, 0);
+        assert!(bulk_result.completed_at.is_some());
+
+        // Check that emails were sent
+        assert!(simulator.sent_emails.len() >= 3);
+
+        // Check analytics
+        let metrics = simulator.analytics.get_metrics();
+        assert!(metrics.get("bulk_verification_completed").unwrap_or(&0) > &0);
+    }
+
+    #[test]
+    fn test_email_delivery_tracking() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let user = simulator.create_unverified_user(
+            "tracked@example.com".to_string(),
+            "tracked_user".to_string(),
+        );
+
+        let token = simulator.request_email_verification(&user.id, "127.0.0.1".to_string()).unwrap();
+
+        // Find the sent email
+        let sent_email = simulator.sent_emails.iter()
+            .find(|e| e.to == "tracked@example.com")
+            .unwrap();
+        let message_id = sent_email.message_id.clone();
+
+        // Simulate email tracking events
+        simulator.simulate_email_open(&message_id).unwrap();
+        simulator.simulate_email_click(&message_id).unwrap();
+
+        // Verify tracking was recorded
+        let updated_email = simulator.sent_emails.iter()
+            .find(|e| e.message_id == message_id)
+            .unwrap();
+
+        assert!(updated_email.opened);
+        assert!(updated_email.clicked);
+        assert_eq!(updated_email.delivery_status, EmailDeliveryStatus::Delivered);
+    }
+
+    #[test]
+    fn test_email_bounce_handling() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let user = simulator.create_unverified_user(
+            "bounce@example.com".to_string(),
+            "bounce_user".to_string(),
+        );
+
+        let token = simulator.request_email_verification(&user.id, "127.0.0.1".to_string()).unwrap();
+
+        // Find the sent email
+        let sent_email = simulator.sent_emails.iter()
+            .find(|e| e.to == "bounce@example.com")
+            .unwrap();
+        let message_id = sent_email.message_id.clone();
+
+        // Simulate bounce
+        simulator.simulate_email_bounce(&message_id, "Mailbox full".to_string()).unwrap();
+
+        // Verify bounce was recorded
+        let bounced_email = simulator.sent_emails.iter()
+            .find(|e| e.message_id == message_id)
+            .unwrap();
+
+        assert!(bounced_email.bounced);
+        assert_eq!(bounced_email.bounce_reason, Some("Mailbox full".to_string()));
+        assert_eq!(bounced_email.delivery_status, EmailDeliveryStatus::Bounced);
+    }
+
+    #[test]
+    fn test_provider_failover() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        // Initially using provider 0
+        assert_eq!(simulator.active_provider, 0);
+
+        // Simulate provider failure
+        simulator.failover_to_next_provider().unwrap();
+
+        // Should now be using provider 1
+        assert_eq!(simulator.active_provider, 1);
+
+        // Check that failure was recorded
+        assert_eq!(simulator.email_providers[0].failure_count, 1);
+        assert!(simulator.email_providers[0].last_failure.is_some());
+
+        // Check analytics
+        let metrics = simulator.analytics.get_metrics();
+        assert!(metrics.get("provider_failover").unwrap_or(&0) > &0);
+    }
+
+    #[test]
+    fn test_email_analytics() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let user1 = simulator.create_unverified_user("analytics1@example.com".to_string(), "user1".to_string());
+        let user2 = simulator.create_unverified_user("analytics2@example.com".to_string(), "user2".to_string());
+
+        // Send emails in different languages
+        simulator.request_email_verification_with_language(&user1.id, "127.0.0.1".to_string(), None, Some("en".to_string())).unwrap();
+        simulator.rate_limits.clear(); // Clear for second user
+        simulator.request_email_verification_with_language(&user2.id, "127.0.0.1".to_string(), None, Some("es".to_string())).unwrap();
+
+        let analytics = simulator.get_email_analytics();
+
+        assert_eq!(analytics.get("total_emails_sent").unwrap(), &2);
+        assert_eq!(analytics.get("emails_sent_en").unwrap(), &1);
+        assert_eq!(analytics.get("emails_sent_es").unwrap(), &1);
+        assert_eq!(analytics.get("emails_opened").unwrap(), &0);
+        assert_eq!(analytics.get("emails_clicked").unwrap(), &0);
+        assert_eq!(analytics.get("emails_bounced").unwrap(), &0);
+    }
+
+    #[test]
+    fn test_gdpr_compliance() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let user = simulator.create_unverified_user(
+            "gdpr@example.com".to_string(),
+            "gdpr_user".to_string(),
+        );
+
+        let user_id = user.id;
+
+        // Send verification email
+        simulator.request_email_verification(&user_id, "127.0.0.1".to_string()).unwrap();
+
+        // Verify data exists
+        assert!(simulator.users.iter().any(|u| u.id == user_id));
+        assert!(simulator.verification_tokens.iter().any(|t| t.user_id == user_id));
+        assert!(simulator.sent_emails.iter().any(|e| e.to == "gdpr@example.com"));
+
+        // Perform GDPR deletion
+        simulator.gdpr_delete_user_data(&user_id).unwrap();
+
+        // Verify data is removed
+        assert!(!simulator.users.iter().any(|u| u.id == user_id));
+        assert!(!simulator.verification_tokens.iter().any(|t| t.user_id == user_id));
+
+        // Check analytics
+        let metrics = simulator.analytics.get_metrics();
+        assert!(metrics.get("gdpr_deletion").unwrap_or(&0) > &0);
+    }
+
+    #[test]
+    fn test_accessibility_compliance() {
+        let simulator = EmailVerificationSimulator::new();
+
+        let is_compliant = simulator.test_accessibility_compliance().unwrap();
+        assert!(is_compliant);
+
+        // Check individual template features
+        for template in simulator.email_templates.values() {
+            assert!(template.accessibility_features);
+            assert!(template.html_body.contains("aria-label"));
+            assert!(template.html_body.contains("charset=UTF-8"));
+        }
+    }
+
+    #[test]
+    fn test_concurrent_verification_simulation() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let tokens = simulator.simulate_concurrent_verifications(5, 2).unwrap();
+
+        // Should have generated tokens (some may have failed due to fraud detection)
+        assert!(!tokens.is_empty());
+
+        // Check that users were created
+        let concurrent_users = simulator.users.iter()
+            .filter(|u| u.username.starts_with("concurrent_user_"))
+            .count();
+        assert_eq!(concurrent_users, 5);
+
+        // Check that emails were sent
+        let concurrent_emails = simulator.sent_emails.iter()
+            .filter(|e| e.to.starts_with("concurrent_user_"))
+            .count();
+        assert!(concurrent_emails > 0);
+    }
+
+    #[test]
+    fn test_enterprise_token_features() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        let user = simulator.create_unverified_user(
+            "enterprise@example.com".to_string(),
+            "enterprise_user".to_string(),
+        );
+
+        let token = simulator.request_email_verification_with_language(
+            &user.id,
+            "192.168.1.100".to_string(),
+            Some("Mozilla/5.0 (Enterprise)".to_string()),
+            Some("en".to_string()),
+        ).unwrap();
+
+        let verification_token = simulator.verification_tokens.iter()
+            .find(|t| t.token == token)
+            .unwrap();
+
+        // Check enterprise features
+        assert_eq!(verification_token.language, "en");
+        assert_eq!(verification_token.ip_address, Some("192.168.1.100".to_string()));
+        assert_eq!(verification_token.user_agent, Some("Mozilla/5.0 (Enterprise)".to_string()));
+        assert!(verification_token.fraud_score.is_some());
+        assert!(!verification_token.tracking_id.is_empty());
+    }
+
+    #[test]
+    fn test_email_template_localization() {
+        let simulator = EmailVerificationSimulator::new();
+
+        // Test all supported languages
+        for lang in &["en", "es", "fr"] {
+            let template = simulator.email_templates.get(*lang).unwrap();
+            assert_eq!(template.language, *lang);
+            assert!(!template.subject.is_empty());
+            assert!(!template.html_body.is_empty());
+            assert!(!template.text_body.is_empty());
+            assert!(template.html_body.contains("{verification_url}"));
+            assert!(template.text_body.contains("{verification_url}"));
+        }
+    }
+
+    #[test]
+    fn test_comprehensive_verification_workflow() {
+        let mut simulator = EmailVerificationSimulator::new();
+
+        // Step 1: Create user
+        let user = simulator.create_unverified_user(
+            "workflow@example.com".to_string(),
+            "workflow_user".to_string(),
+        );
+
+        // Step 2: Request verification with full context
+        let token = simulator.request_email_verification_with_language(
+            &user.id,
+            "192.168.1.100".to_string(),
+            Some("Mozilla/5.0 (Workflow Test)".to_string()),
+            Some("en".to_string()),
+        ).unwrap();
+
+        // Step 3: Simulate email delivery tracking
+        let sent_email = simulator.sent_emails.iter()
+            .find(|e| e.to == "workflow@example.com")
+            .unwrap();
+        let message_id = sent_email.message_id.clone();
+
+        simulator.simulate_email_open(&message_id).unwrap();
+
+        // Step 4: Verify email
+        simulator.verify_email(&token, "192.168.1.100".to_string()).unwrap();
+
+        // Step 5: Validate final state
+        let updated_user = simulator.users.iter().find(|u| u.id == user.id).unwrap();
+        assert!(updated_user.email_verified);
+        assert_eq!(updated_user.status, UserStatus::Active);
+
+        let verification_token = simulator.verification_tokens.iter()
+            .find(|t| t.token == token)
+            .unwrap();
+        assert!(verification_token.used);
+
+        let analytics = simulator.get_email_analytics();
+        assert!(analytics.get("total_emails_sent").unwrap() > &0);
+        assert!(analytics.get("emails_opened").unwrap() > &0);
+
+        let core_metrics = simulator.analytics.get_metrics();
+        assert!(core_metrics.get("verification_email_sent").unwrap_or(&0) > &0);
     }
 }

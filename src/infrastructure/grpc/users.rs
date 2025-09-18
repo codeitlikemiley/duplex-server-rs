@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     PostgreSQL,
-    commands::{CommandMessage, CreateUser, Login},
+    commands::{CommandMessage, CreateUser, Login, RegisterUser},
     errors::AppError,
     infrastructure::errors::ErrorTranslator,
     proto::{
@@ -247,9 +247,25 @@ impl GrpcUserService for GrpcUserServiceImpl {
     // Stub implementations for remaining methods - TODO: Implement these
     async fn register_user(
         &self,
-        _request: Request<crate::proto::RegisterUserRequest>,
+        request: Request<crate::proto::RegisterUserRequest>,
     ) -> Result<Response<crate::proto::RegisterUserResponse>, Status> {
-        Err(Status::unimplemented("Not yet implemented"))
+        let req = request.into_inner();
+        let command = RegisterUser {
+            username: req.username,
+            email: req.email,
+            password: req.password,
+            first_name: Some(req.first_name).filter(|s| !s.is_empty()),
+            last_name: Some(req.last_name).filter(|s| !s.is_empty()),
+        };
+        match self.repo.handle_register_user(command).await {
+            Ok(()) => {
+                Ok(Response::new(crate::proto::RegisterUserResponse {
+                    message: "User registered successfully. Please check your email for verification.".to_string(),
+                    verification_sent: true,
+                }))
+            }
+            Err(e) => Err(ErrorTranslator::to_grpc_status(e)),
+        }
     }
 
     async fn logout(
