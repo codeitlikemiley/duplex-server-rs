@@ -10,7 +10,7 @@ mod http_error_tests {
         // Test that HTTP error status codes are properly mapped
         // This test will pass once ErrorTranslator is integrated
 
-        let expected_mappings = vec![
+        let expected_mappings = [
             ("NOT_FOUND", "❌ User not found"),
             ("BAD_REQUEST", "❌ Invalid input format"),
             ("UNAUTHORIZED", "❌ Invalid credentials"),

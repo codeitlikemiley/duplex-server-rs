@@ -1,7 +1,7 @@
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
-use crate::models::{User, UserProfile};
+use crate::models::{User, UserProfile, UserStatus};
 
 #[derive(Clone)]
 pub struct PostgreSQL {
@@ -32,7 +32,7 @@ impl PostgreSQL {
             user.email,
             user.password_hash,
             user.email_verified,
-            user.status as i32,
+            user.status as UserStatus,
             user.created_at,
             user.updated_at,
             user.last_login_at
