@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the comprehensive error handling system implemented in the gRPC Error Sharing feature. The system provides consistent, informative error responses across both REST and gRPC APIs while eliminating code duplication.
+This document describes the error handling system used by the REST API. Domain errors are defined once as `AppError` and translated to HTTP responses in a single place.
 
 ## Architecture
 
@@ -16,7 +16,6 @@ This document describes the comprehensive error handling system implemented in t
 2. **ErrorTranslator Service** (`src/infrastructure/errors/mod.rs`)
    - Protocol-specific error conversion
    - HTTP JSON response formatting
-   - gRPC Status code mapping
 
 3. **Service Layer Integration**
    - Updated UserService to return `Result<T, AppError>`
@@ -40,14 +39,14 @@ pub enum AppError {
 
 ### Error Code Mapping
 
-| AppError Variant | Error Code | HTTP Status | gRPC Status |
-|------------------|------------|-------------|-------------|
-| Validation | VALIDATION_ERROR | 400 | INVALID_ARGUMENT |
-| NotFound | NOT_FOUND | 404 | NOT_FOUND |
-| Authentication | AUTHENTICATION_ERROR | 401 | UNAUTHENTICATED |
-| Authorization | AUTHORIZATION_ERROR | 403 | PERMISSION_DENIED |
-| Database | DATABASE_ERROR | 500 | INTERNAL |
-| Internal | INTERNAL_ERROR | 500 | INTERNAL |
+| AppError Variant | Error Code | HTTP Status |
+|------------------|------------|-------------|
+| Validation | VALIDATION_ERROR | 400 |
+| NotFound | NOT_FOUND | 404 |
+| Authentication | AUTHENTICATION_ERROR | 401 |
+| Authorization | AUTHORIZATION_ERROR | 403 |
+| Database | DATABASE_ERROR | 500 |
+| Internal | INTERNAL_ERROR | 500 |
 
 ## Response Formats
 
@@ -62,17 +61,6 @@ All HTTP errors return structured JSON responses:
     "message": "❌ Invalid user ID format. Expected UUID format.",
     "timestamp": "2025-09-13T04:12:00Z"
   }
-}
-```
-
-### gRPC API
-
-gRPC errors use standard Status codes with consistent messages:
-
-```
-Status {
-  code: INVALID_ARGUMENT,
-  message: "❌ Invalid user ID format. Expected UUID format."
 }
 ```
 
@@ -115,41 +103,6 @@ pub async fn get_user_by_id(
             id: Some(id.to_string())
         }),
         Err(app_error) => ErrorTranslator::to_http_response(app_error),
-    }
-}
-```
-
-### For gRPC Handlers
-
-```rust
-use crate::infrastructure::errors::ErrorTranslator;
-
-pub async fn get_user(
-    &self,
-    request: Request<GetUserRequest>,
-) -> Result<Response<GetUserResponse>, Status> {
-    let id_str = request.into_inner().id;
-
-    let id = Uuid::parse_str(&id_str)
-        .map_err(|_| AppError::Validation {
-            field: "id".to_string(),
-            message: "Invalid UUID format".to_string(),
-        })?;
-
-    match self.repo.handle_get_user_by_id(id).await {
-        Ok(Some(user)) => {
-            let response = Response::new(GetUserResponse {
-                id: user.id.to_string(),
-                username: user.username,
-                email: user.email,
-            });
-            Ok(response)
-        }
-        Ok(None) => Err(ErrorTranslator::to_grpc_status(AppError::NotFound {
-            resource: "User".to_string(),
-            id: Some(id_str)
-        })),
-        Err(app_error) => Err(ErrorTranslator::to_grpc_status(app_error)),
     }
 }
 ```
@@ -235,27 +188,6 @@ mod tests {
         let response = ErrorTranslator::to_http_response(error);
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
-}
-```
-
-### Integration Tests
-
-```rust
-#[tokio::test]
-async fn test_error_consistency() {
-    // Test that same error produces consistent responses
-    // across HTTP and gRPC protocols
-    let error = AppError::Validation {
-        field: "id".to_string(),
-        message: "Invalid UUID".to_string(),
-    };
-
-    let http_response = ErrorTranslator::to_http_response(error.clone());
-    let grpc_status = ErrorTranslator::to_grpc_status(error);
-
-    // Both should contain the same error message
-    assert!(http_response contains "❌ Invalid UUID");
-    assert!(grpc_status.message() contains "❌ Invalid UUID");
 }
 ```
 
@@ -375,4 +307,4 @@ async fn test_error_consistency() {
 
 **Last Updated**: 2025-09-13
 **Version**: 1.0.0
-**Feature**: gRPC Error Sharing (#001)
+**Feature**: Error Sharing (#001); gRPC support removed

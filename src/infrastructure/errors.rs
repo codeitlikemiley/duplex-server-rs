@@ -1,10 +1,9 @@
 //! Error translation service for converting domain errors to protocol-specific formats
 //!
 //! This module provides translators that convert AppError instances to the appropriate
-//! response formats for different protocols (gRPC, HTTP).
+//! response formats for different protocols (HTTP).
 
 use axum::response::{IntoResponse, Response};
-use tonic::Status;
 
 use crate::errors::AppError;
 
@@ -12,18 +11,6 @@ use crate::errors::AppError;
 pub struct ErrorTranslator;
 
 impl ErrorTranslator {
-    /// Convert AppError to tonic::Status for gRPC responses
-    pub fn to_grpc_status(error: AppError) -> Status {
-        match error {
-            AppError::Validation { .. } => Status::invalid_argument(error.user_message()),
-            AppError::NotFound { .. } => Status::not_found(error.user_message()),
-            AppError::Authentication { .. } => Status::unauthenticated(error.user_message()),
-            AppError::Authorization { .. } => Status::permission_denied(error.user_message()),
-            AppError::Database { .. } => Status::internal(error.user_message()),
-            AppError::Internal { .. } => Status::internal(error.user_message()),
-        }
-    }
-
     /// Convert AppError to axum::Response for HTTP responses
     pub fn to_http_response(error: AppError) -> Response {
         let status_code = match error {
@@ -31,7 +18,9 @@ impl ErrorTranslator {
             AppError::NotFound { .. } => axum::http::StatusCode::NOT_FOUND,
             AppError::Authentication { .. } => axum::http::StatusCode::UNAUTHORIZED,
             AppError::Authorization { .. } => axum::http::StatusCode::FORBIDDEN,
-            AppError::Database { .. } | AppError::Internal { .. } => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Database { .. } | AppError::Internal { .. } => {
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR
+            }
         };
 
         let body = serde_json::json!({
@@ -50,74 +39,6 @@ impl ErrorTranslator {
 mod tests {
     use super::*;
     use axum::http::StatusCode;
-
-    #[test]
-    fn test_to_grpc_status_validation_error() {
-        let error = AppError::Validation {
-            field: "email".to_string(),
-            message: "Invalid format".to_string(),
-        };
-
-        let status = ErrorTranslator::to_grpc_status(error);
-        assert_eq!(status.code(), tonic::Code::InvalidArgument);
-        assert_eq!(status.message(), "❌ email: Invalid format");
-    }
-
-    #[test]
-    fn test_to_grpc_status_not_found_error() {
-        let error = AppError::NotFound {
-            resource: "User".to_string(),
-            id: Some("123".to_string()),
-        };
-
-        let status = ErrorTranslator::to_grpc_status(error);
-        assert_eq!(status.code(), tonic::Code::NotFound);
-        assert_eq!(status.message(), "❌ User not found with ID 123");
-    }
-
-    #[test]
-    fn test_to_grpc_status_authentication_error() {
-        let error = AppError::Authentication {
-            message: "Invalid credentials".to_string(),
-        };
-
-        let status = ErrorTranslator::to_grpc_status(error);
-        assert_eq!(status.code(), tonic::Code::Unauthenticated);
-        assert_eq!(status.message(), "❌ Authentication failed: Invalid credentials");
-    }
-
-    #[test]
-    fn test_to_grpc_status_authorization_error() {
-        let error = AppError::Authorization {
-            message: "Insufficient permissions".to_string(),
-        };
-
-        let status = ErrorTranslator::to_grpc_status(error);
-        assert_eq!(status.code(), tonic::Code::PermissionDenied);
-        assert_eq!(status.message(), "❌ Access denied: Insufficient permissions");
-    }
-
-    #[test]
-    fn test_to_grpc_status_database_error() {
-        let error = AppError::Database {
-            message: "Connection failed".to_string(),
-        };
-
-        let status = ErrorTranslator::to_grpc_status(error);
-        assert_eq!(status.code(), tonic::Code::Internal);
-        assert_eq!(status.message(), "❌ Database error occurred");
-    }
-
-    #[test]
-    fn test_to_grpc_status_internal_error() {
-        let error = AppError::Internal {
-            message: "Unexpected error".to_string(),
-        };
-
-        let status = ErrorTranslator::to_grpc_status(error);
-        assert_eq!(status.code(), tonic::Code::Internal);
-        assert_eq!(status.message(), "❌ Internal server error");
-    }
 
     #[test]
     fn test_to_http_response_validation_error() {

@@ -2,7 +2,7 @@ use argon2::{
     Argon2, PasswordHasher, PasswordVerifier,
     password_hash::{SaltString, rand_core::OsRng},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -12,7 +12,6 @@ use crate::{
     errors::AppError,
     infrastructure::auth::JwtService,
     models::{User, UserProfile, UserStatus},
-    repositories::{UserProfileRepository, UserRepository},
 };
 
 #[derive(Clone)]

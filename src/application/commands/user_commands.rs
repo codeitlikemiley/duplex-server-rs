@@ -2,7 +2,7 @@ use serde::Deserialize;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::{domain::Command, proto::CreateUserRequest, services::UserService};
+use crate::{domain::Command, services::UserService};
 
 #[derive(Deserialize, Debug)]
 pub struct CreateUser {
@@ -36,16 +36,6 @@ impl Command for CreateUser {}
 impl Command for RegisterUser {}
 impl Command for Login {}
 impl Command for VerifyEmail {}
-
-impl From<CreateUserRequest> for CreateUser {
-    fn from(value: CreateUserRequest) -> Self {
-        CreateUser {
-            email: value.email,
-            username: value.username,
-            password: value.password,
-        }
-    }
-}
 
 impl From<RegisterUser> for CreateUser {
     fn from(value: RegisterUser) -> Self {
